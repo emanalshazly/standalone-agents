@@ -1,0 +1,70 @@
+# Core Dependencies
+python>=3.10
+langchain>=0.1.0
+langchain-community>=0.0.20
+langchain-openai>=0.0.5
+openai>=1.12.0
+anthropic>=0.18.0
+
+# Vector Database
+chromadb>=0.4.22
+faiss-cpu>=1.7.4
+sentence-transformers>=2.3.1
+
+# NLP & Language Processing
+spacy>=3.7.2
+transformers>=4.37.2
+torch>=2.1.0
+nltk>=3.8.1
+
+# Arabic Language Support
+camel-tools>=1.5.2
+pyarabic>=0.6.15
+arabert>=1.0.1
+
+# API & Web
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.6.0
+python-multipart>=0.0.9
+
+# Database & Caching
+redis>=5.0.1
+sqlalchemy>=2.0.25
+alembic>=1.13.1
+
+# Utilities
+python-dotenv>=1.0.0
+pyyaml>=6.0.1
+requests>=2.31.0
+httpx>=0.26.0
+tenacity>=8.2.3
+
+# Monitoring & Logging
+loguru>=0.7.2
+prometheus-client>=0.19.0
+sentry-sdk>=1.40.0
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.23.4
+pytest-cov>=4.1.0
+pytest-mock>=3.12.0
+httpx>=0.26.0
+
+# Development
+black>=24.1.1
+flake8>=7.0.0
+mypy>=1.8.0
+pre-commit>=3.6.0
+isort>=5.13.2
+
+# Documentation
+mkdocs>=1.5.3
+mkdocs-material>=9.5.6
+mkdocstrings[python]>=0.24.0
+
+# Performance
+numpy>=1.26.3
+pandas>=2.2.0
+scikit-learn>=1.4.0
