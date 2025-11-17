@@ -1,0 +1,93 @@
+# Configuration Example
+# Copy this file to config.yaml and fill in your values
+
+# LLM Configuration
+llm:
+  provider: "openai"  # openai, anthropic, local
+  model: "gpt-4"
+  temperature: 0.7
+  max_tokens: 2000
+  api_key: "your-api-key-here"
+
+# Vector Database Configuration
+vector_db:
+  provider: "chromadb"  # chromadb, pinecone, weaviate
+  collection_name: "standalone_agents"
+  persist_directory: "./data/vector_db"
+  # For Pinecone
+  pinecone_api_key: "your-pinecone-key"
+  pinecone_environment: "us-west1-gcp"
+  # For Weaviate
+  weaviate_url: "http://localhost:8080"
+
+# Embedding Configuration
+embeddings:
+  model: "sentence-transformers/all-MiniLM-L6-v2"
+  dimension: 384
+  cache_enabled: true
+
+# RAG Configuration
+rag:
+  chunk_size: 512
+  chunk_overlap: 50
+  top_k: 5
+  retrieval_strategy: "hybrid"  # semantic, keyword, hybrid
+  rerank: true
+
+# Agent-specific Configuration
+agents:
+  education:
+    enabled: true
+    data_path: "./data/education"
+  hr:
+    enabled: true
+    data_path: "./data/hr"
+  real_estate:
+    enabled: true
+    data_path: "./data/real_estate"
+  healthcare:
+    enabled: true
+    data_path: "./data/healthcare"
+  finance:
+    enabled: true
+    data_path: "./data/finance"
+  legal:
+    enabled: true
+    data_path: "./data/legal"
+
+# Database Configuration
+database:
+  type: "postgresql"  # postgresql, mongodb
+  host: "localhost"
+  port: 5432
+  database: "standalone_agents"
+  username: "your-username"
+  password: "your-password"
+
+# Cache Configuration
+cache:
+  enabled: true
+  backend: "redis"
+  redis_url: "redis://localhost:6379"
+  ttl: 3600  # seconds
+
+# Logging Configuration
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  file: "./logs/agents.log"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Security Configuration
+security:
+  enable_auth: true
+  jwt_secret: "your-secret-key-change-this"
+  jwt_expiry: 86400  # 24 hours
+  enable_encryption: true
+  pii_detection: true
+
+# Performance Configuration
+performance:
+  max_workers: 4
+  request_timeout: 300  # seconds
+  batch_size: 10
+  enable_async: true
