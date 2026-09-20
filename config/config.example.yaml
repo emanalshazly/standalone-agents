@@ -69,8 +69,13 @@ languages:
   default: "ar"
   auto_detect: true
 
-# Scope guardrails (used by classify_intent node)
-# Anything outside these topics is routed to human handoff rather than answered.
+# Scope guardrails
+# NOTE (honesty check on this exact file's own rule above): these lists are
+# NOT actually read from this YAML at runtime yet — they mirror the hardcoded
+# IN_SCOPE_TOPICS/OUT_OF_SCOPE_TOPICS constants in src/graph/legal_graph.py,
+# which case_drafting_graph.py also imports and reuses. If you change scope,
+# change it there; treat this block as documentation of that decision, not
+# as live configuration, until someone wires it up.
 scope:
   in_scope_topics:
     - "employment_contracts"
@@ -83,3 +88,13 @@ scope:
     - "litigation_strategy"
     - "court_filings"
     - "tax_law"
+
+# Case-assistant track (src/agents/case_assistant/, src/subagents/)
+# Higher risk than the literacy agent above — see PROJECT_OVERVIEW.md §6
+# and docs/eval/case_drafting_audit.md before enabling for real users.
+case_assistant:
+  max_research_iterations: 3   # ResearchSubAgent's ReAct loop bound
+  max_draft_retries: 2         # DraftingSubAgent's citation-verification retry bound
+  web_search:
+    provider: "tavily"         # requires TAVILY_API_KEY; falls back to local-only if unset
+    trust_tier: "web_unverified"  # never elevated automatically — see docs/eval/case_drafting_audit.md

@@ -115,7 +115,77 @@ and in the generated citation label rather than resolved by guessing.
 | Feedback | `src/core/learning_system.py`, pickle + keyword counts | `src/feedback/curation_pipeline.py`, SQLite human-review queue; only human-approved content is ever marked `verified_by_lawyer=True` |
 | Evaluation | none | `tests/eval/golden_qa.jsonl` + `tests/eval/run_eval.py` (retrieval-recall checks with no API key required, plus RAGAS faithfulness scoring when one is available) |
 
-## 6. What's still a gap (stated plainly, not buried)
+## 6. Two-track architecture: literacy agent vs. case assistant
+
+A second, separate agent track was added after the initial pivot:
+`src/agents/case_assistant/` (facade: `CaseAssistantAgent`), backed by
+`src/graph/case_drafting_graph.py`. It answers a different question than
+the literacy agent — not "what does the law say in general" but "help me
+research, evidence-check, and draft paperwork for my specific labor/civil
+dispute."
+
+**This was deliberately built as a second agent, not a mode of the first
+one**, for reasons that matter more than code organization:
+
+| | `EgyptianLegalAgent` (literacy) | `CaseAssistantAgent` (case assistant) |
+|---|---|---|
+| Question answered | "What does the law say?" | "Help me with my specific dispute" |
+| Knowledge source | Local seed KB only | Local KB **+ live web search** (`src/tools/web_search.py`) |
+| Retrieval shape | Single retrieve call | Iterative ReAct-style loop: search → judge sufficiency → refine query → search again (bounded, `src/subagents/research_subagent.py`) |
+| Output | An answer | A **draft document** the user might actually use |
+| Risk tier | Lower — general information | Higher — this is exactly the category (AI-assisted case preparation) that produced the 2026 six-figure sanctions cited in §4 |
+
+Mixing these into one class would have meant the literacy agent's simple,
+already-reviewed retrieval path silently inherits live web search and
+document-drafting output the moment someone touches the shared code — a
+scope leak with real liability consequences, not just an API design
+nitpick. Keeping them separate means each can be hardened, reviewed, and
+(eventually) released to real users on its own timeline.
+
+### Case-assistant internals
+
+`case_drafting_graph.py` composes three sub-agents (`src/subagents/`):
+
+1. **`ResearchSubAgent`** — the ReAct loop. Local KB results and web
+   results are kept in explicitly separate fields; every web result is
+   tagged `trust_tier="web_unverified"` and is never treated as an
+   authority on its own.
+2. **`EvidenceReviewSubAgent`** — takes the user's own account of their
+   situation plus the research output and produces a gap analysis
+   (missing evidence, supporting citations, risk notes). It is instructed
+   never to predict an outcome ("you will win") — only to surface what the
+   retrieved legal basis does and does not cover.
+3. **`DraftingSubAgent`** — assembles the actual draft text. Three
+   guardrails are load-bearing here, not decorative:
+   - citations in the draft body may reference **only** numbered local
+     sources; web findings are appended as a separate "unverified research
+     notes" section, never cited as if they were verified law;
+   - the draft is run through the same `citation_verifier` used by the
+     literacy agent, with the same bounded-retry-then-refuse behavior —
+     exhausting retries returns `blocked=True` and an empty draft, not a
+     best-effort one;
+   - a `DRAFT — NOT FOR FILING` header is inserted in code (not requested
+     from the LLM), so no generation can omit it.
+
+The API (`POST /case/draft`) requires `acknowledge_draft_only: true` on
+**every** request — not a one-time setting — because every response from
+this endpoint is, without exception, a preliminary draft for a licensed
+lawyer's review.
+
+### What this track still does not do, on purpose
+
+- It does not touch criminal law, tax law, or court-filing strategy — the
+  same `OUT_OF_SCOPE_TOPICS` gate from the literacy agent applies here too
+  (`src/graph/legal_graph.py`, imported by `case_drafting_graph.py`), plus
+  a keyword-based defensive check in `DraftingSubAgent` as a second net.
+- It does not verify web-sourced facts the way it verifies local KB
+  citations — there is no cross-encoder or lawyer review standing behind a
+  Tavily search result, only the honesty of labeling it as such. Treat
+  `docs/eval/case_drafting_audit.md`'s gate as at least as strict as the
+  literacy agent's, if not stricter, before any real use.
+- It does not file, submit, or send anything anywhere. It drafts text.
+
+## 7. What's still a gap (stated plainly, not buried)
 
 - No rate limiting on the public API.
 - No Langfuse tracing wired in yet (it's in `requirements.txt` but not yet
@@ -128,3 +198,12 @@ and in the generated citation label rather than resolved by guessing.
   gate: content should not outrun verification).
 - No lawyer has reviewed the seed knowledge base yet. This is the single
   most important open item before any real user sees this agent's answers.
+- The case-assistant track has not been reviewed by a lawyer at all — see
+  `docs/eval/case_drafting_audit.md`. It should be treated as an internal
+  prototype, not something to point real users at, until that review
+  happens.
+- Web search (`TAVILY_API_KEY`) is optional; without it the research loop
+  runs on the local KB alone via `NullSearchProvider`, which degrades
+  gracefully but silently reduces the case assistant's research depth —
+  worth surfacing to the user in a future iteration rather than leaving it
+  implicit in a log line.

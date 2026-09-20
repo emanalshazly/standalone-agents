@@ -1,12 +1,18 @@
-# 🏛️ Egyptian Legal-Literacy Agent — وكيل محو الأمية القانونية المصري
+# 🏛️ Egyptian Legal Agent — الوكيل القانوني المصري
 
 <div dir="rtl">
 
 ## نظرة عامة
 
-وكيل عربي واحد، متخصص، للإجابة على أسئلة الأفراد والشركات الصغيرة في مصر حول
-**عقود العمل وحقوق العمال**، بلغة بسيطة، مع **تحقق إلزامي من كل استشهاد قانوني**
-قبل عرض الإجابة.
+نظام قانوني عربي بمسارين منفصلين عمداً (راجع [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md#6-two-track-architecture-literacy-agent-vs-case-assistant)):
+
+1. **وكيل التوعية القانونية** (`EgyptianLegalAgent`) — إجابة على أسئلة الأفراد
+   والشركات الصغيرة حول **عقود العمل وحقوق العمال** بلغة بسيطة، مع **تحقق إلزامي
+   من كل استشهاد قانوني** قبل عرض الإجابة، اعتماداً على قاعدة معرفية محلية فقط.
+2. **وكيل المساعدة القضائية** (`CaseAssistantAgent`) — أداة **مسودات فقط** لبحث
+   وتقييم أدلة وصياغة مستندات نزاع عمالي/مدني محدد، بحلقة بحث تكرارية (محلي + بحث
+   حي على الإنترنت)، ومراجعة أدلة، وصياغة — كل ناتج منها مُعلَّم صراحة كمسودة
+   أولية لمراجعة محامٍ مرخّص، وليست جاهزة للتقديم لأي جهة.
 
 </div>
 
@@ -40,12 +46,19 @@ that can refuse to answer rather than emit an ungrounded claim.
 
 ## ⚠️ Scope and known limitations — read before using this for anything real
 
-- **Not legal advice.** This agent explains publicly available legal
-  information in plain language. It is not a lawyer and does not replace
-  one.
-- **Explicitly out of scope**: criminal law, litigation strategy, court
-  filings, tax law. Queries about these are routed to human handoff, not
-  answered.
+- **Not legal advice, from either track.** The literacy agent explains
+  publicly available legal information in plain language. The case
+  assistant drafts preliminary paperwork. Neither is a lawyer, neither
+  represents you, and the case assistant **never files or submits
+  anything** — see
+  [PROJECT_OVERVIEW.md §6](PROJECT_OVERVIEW.md#6-two-track-architecture-literacy-agent-vs-case-assistant).
+- **Explicitly out of scope for both tracks**: criminal law, litigation
+  strategy, court filings, tax law. Queries about these are routed to
+  human handoff, not answered or drafted.
+- **The case-assistant track has not been reviewed by a lawyer at all.**
+  It is an internal prototype — see
+  [`docs/eval/case_drafting_audit.md`](docs/eval/case_drafting_audit.md).
+  Do not point real users at `/case/draft` yet.
 - **The seed knowledge base is NOT yet lawyer-verified.** Every entry in
   `src/knowledge/legal_eg/labor_law_2025_seed.json` was compiled by an AI
   research agent from secondary sources (law-firm client alerts about
@@ -107,6 +120,16 @@ User query
 | `src/core/learning_system.py` (pickle + keyword counts) | `src/feedback/curation_pipeline.py` (SQLite human review queue) | Honestly scoped — no "learning" claim |
 | `_calculate_confidence()` heuristic | `src/verification/citation_verifier.py` (per-claim entailment check) | Checks the draft against the actual source, not against source *count* |
 
+### Track 2 (case assistant) components — new, not a replacement of anything
+
+| Component | Role |
+|---|---|
+| `src/tools/web_search.py` | Pluggable search provider (Tavily via `httpx`, or `NullSearchProvider` with no key) — every result tagged `trust_tier="web_unverified"` |
+| `src/subagents/research_subagent.py` | ReAct-style loop: retrieve → judge sufficiency → refine query → retrieve again (bounded) |
+| `src/subagents/evidence_review_subagent.py` | Gap analysis between the user's case facts and the research results — never predicts an outcome |
+| `src/subagents/drafting_subagent.py` | Assembles the draft, reuses `citation_verifier`, enforces the DRAFT-ONLY header in code |
+| `src/graph/case_drafting_graph.py` | Wires the three sub-agents into a `StateGraph`, separate from `legal_graph.py` on purpose — see [PROJECT_OVERVIEW.md §6](PROJECT_OVERVIEW.md#6-two-track-architecture-literacy-agent-vs-case-assistant) |
+
 ## 📦 Installation
 
 ```bash
@@ -118,6 +141,8 @@ cp .env.example .env   # add your OPENAI_API_KEY or ANTHROPIC_API_KEY
 ```
 
 ## 🚀 Usage
+
+### Track 1: legal literacy
 
 ```python
 from src.agents.legal.legal_agent import EgyptianLegalAgent
@@ -131,11 +156,42 @@ print("lawyer_review_pending:", answer.lawyer_review_pending)  # currently alway
 print("citations:", answer.citations)
 ```
 
-Run the API:
+### Track 2: case assistant (research + evidence review + drafting)
+
+⚠️ Prototype — not lawyer-reviewed. See Scope section above.
+
+```python
+from src.agents.case_assistant.drafting_agent import CaseAssistantAgent
+
+case_agent = CaseAssistantAgent()  # optionally: legal_index=agent.legal_index to share the vector store
+result = case_agent.prepare_draft(
+    case_facts="صاحب العمل أنهى عقدي بدون إخطار مسبق بعد سنتين من العمل",
+)
+
+print(result.draft_text)          # always starts with a DRAFT-ONLY header
+print(result.handoff_required)    # True if out of scope or research/drafting couldn't be verified
+print(result.evidence_gaps)       # what's missing to strengthen the case
+print(result.web_sources_consulted)  # unverified web sources, if TAVILY_API_KEY is set
+```
+
+Without `TAVILY_API_KEY` set, the research loop runs on the local knowledge
+base only (`NullSearchProvider` — degrades gracefully, does not fabricate
+web results).
+
+### Run the API
 
 ```bash
 uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
 # docs at http://localhost:8000/docs
+```
+
+```bash
+curl -X POST "http://localhost:8000/case/draft" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "case_facts": "صاحب العمل أنهى عقدي بدون إخطار مسبق",
+    "acknowledge_draft_only": true
+  }'
 ```
 
 ## 🧪 Testing

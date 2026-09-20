@@ -1,12 +1,21 @@
-"""LangGraph-based orchestration for the Egyptian legal-literacy agent.
+"""LangGraph-based orchestration.
 
-Replaces src/core/orchestrator.py (a plain dict lookup dressed up as
-"multi-agent collaboration strategies") with a real state machine that has
-actual branching logic: scope gating, a citation-verification gate that can
-loop the draft back for correction or refuse to answer, and an explicit
-human-handoff path.
+Two separate graphs, deliberately not merged into one (see
+PROJECT_OVERVIEW.md "Two-track architecture"):
+
+  legal_graph.py         -> plain-language legal-literacy Q&A (lower risk)
+  case_drafting_graph.py -> case-assistant drafting/evidence-review track
+                             (higher risk: research loop with live web
+                             search, evidence gap analysis, document
+                             drafting — always DRAFT-ONLY, never filed)
 """
 
 from src.graph.legal_graph import LegalAgentState, build_legal_graph
+from src.graph.case_drafting_graph import CaseDraftingState, build_case_drafting_graph
 
-__all__ = ["LegalAgentState", "build_legal_graph"]
+__all__ = [
+    "LegalAgentState",
+    "build_legal_graph",
+    "CaseDraftingState",
+    "build_case_drafting_graph",
+]

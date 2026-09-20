@@ -143,6 +143,17 @@ generalist domain. Contributions in this domain are welcome; a proposal to
 add another unrelated vertical back into this repo should probably be its
 own project instead.
 
+There are now two tracks — `src/agents/legal/` (literacy Q&A) and
+`src/agents/case_assistant/` (drafting/evidence-review) — kept as separate
+classes and separate graphs on purpose (see
+[PROJECT_OVERVIEW.md §6](PROJECT_OVERVIEW.md#6-two-track-architecture-literacy-agent-vs-case-assistant)).
+**Do not merge them.** If you're extending the case-assistant track
+specifically (new sub-agent, new document type, new search provider in
+`src/tools/web_search.py`), the same rules below apply, plus:
+every new capability there needs a corresponding row/section in
+[`docs/eval/case_drafting_audit.md`](docs/eval/case_drafting_audit.md)
+before it's considered done, not just tests passing.
+
 The two ways to extend this agent safely:
 
 ### 1. Add or correct knowledge-base content

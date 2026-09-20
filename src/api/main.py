@@ -1,5 +1,5 @@
 """
-FastAPI Application - Egyptian Legal-Literacy Agent API
+FastAPI Application - Egyptian Legal Agent API (two tracks)
 
 Rewritten for the single-domain pivot. Two honesty fixes versus the old
 multi-agent API (src/api/main.py, pre-pivot):
@@ -13,6 +13,12 @@ multi-agent API (src/api/main.py, pre-pivot):
    old "learning system" it exposed was pickle-logged keyword counts, not
    learning. The equivalent honest endpoint is `/feedback/review-queue`,
    a human review queue (see src/feedback/curation_pipeline.py).
+
+Two tracks, two agents, on purpose (see PROJECT_OVERVIEW.md):
+  /query        -> EgyptianLegalAgent (plain-language literacy Q&A)
+  /case/draft   -> CaseAssistantAgent (drafting + evidence review,
+                   higher risk, requires explicit `acknowledge_draft_only`
+                   consent in every request — see that route's docstring)
 
 Known gap, called out rather than hidden: rate limiting is not yet
 implemented (no Redis/slowapi wiring). Do not deploy this publicly without
@@ -29,16 +35,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from src.agents.legal.legal_agent import EgyptianLegalAgent
+from src.agents.case_assistant.drafting_agent import CaseAssistantAgent
 from src.feedback.curation_pipeline import CurationPipeline
 
 app = FastAPI(
-    title="Egyptian Legal-Literacy Agent API",
+    title="Egyptian Legal Agent API",
     description=(
-        "Citation-verified, Arabic-first legal Q&A for Egyptian individuals "
-        "and small businesses. Not legal advice; not a substitute for a "
-        "licensed lawyer."
+        "Two tracks: (1) citation-verified, Arabic-first legal-literacy "
+        "Q&A, and (2) a DRAFT-ONLY case-assistant (research + evidence "
+        "review + drafting) for Egyptian labor/civil contract disputes. "
+        "Neither is legal advice; neither is a substitute for a licensed "
+        "lawyer, and case-assistant output is never ready for filing."
     ),
-    version="2.0.0",
+    version="2.1.0",
 )
 
 _cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
@@ -51,6 +60,7 @@ app.add_middleware(
 )
 
 _agent: EgyptianLegalAgent | None = None
+_case_agent: CaseAssistantAgent | None = None
 _curation: CurationPipeline | None = None
 
 
@@ -67,8 +77,11 @@ def _verify_admin_key(x_api_key: str = Header(default="")) -> None:
 
 @app.on_event("startup")
 async def startup_event() -> None:
-    global _agent, _curation
+    global _agent, _case_agent, _curation
     _agent = EgyptianLegalAgent()
+    # Share one EgyptianLegalIndex/vector store between both tracks — no
+    # reason to load the embedding model and Chroma collection twice.
+    _case_agent = CaseAssistantAgent(legal_index=_agent.legal_index)
     _curation = CurationPipeline()
 
 
@@ -105,12 +118,53 @@ class RejectCorrectionRequest(BaseModel):
     notes: str = ""
 
 
+class CaseDraftRequest(BaseModel):
+    case_facts: str = Field(
+        ...,
+        min_length=1,
+        max_length=5000,
+        description="Plain-language description of the situation, dates, and evidence you have.",
+    )
+    document_type: str = Field(default="مذكرة شكوى", max_length=100)
+    acknowledge_draft_only: bool = Field(
+        ...,
+        description=(
+            "Must be true. Confirms the caller understands the output is a "
+            "DRAFT for a licensed lawyer's review, not ready for filing, "
+            "and not legal representation."
+        ),
+    )
+
+
+class EvidenceGapResponse(BaseModel):
+    description: str
+    why_it_matters: str
+
+
+class WebSourceResponse(BaseModel):
+    title: str
+    url: str
+
+
+class CaseDraftResponse(BaseModel):
+    draft_text: str
+    language: str
+    handoff_required: bool
+    research_iterations: int
+    evidence_gaps: list[EvidenceGapResponse]
+    web_sources_consulted: list[WebSourceResponse]
+    timestamp: str
+
+
 @app.get("/")
 async def root():
     return {
-        "name": "Egyptian Legal-Literacy Agent",
-        "version": "2.0.0",
-        "scope": "Egyptian labor/contract literacy for individuals & small businesses",
+        "name": "Egyptian Legal Agent API",
+        "version": "2.1.0",
+        "tracks": {
+            "literacy": "/query — plain-language rights/contract Q&A",
+            "case_assistant": "/case/draft — DRAFT-ONLY research + evidence review + drafting",
+        },
         "not_in_scope": ["criminal_law", "litigation_strategy", "court_filings", "tax_law"],
         "status": "running",
     }
@@ -133,6 +187,46 @@ async def query(request: QueryRequest):
         handoff_required=result.handoff_required,
         lawyer_review_pending=result.lawyer_review_pending,
         citations=result.citations,
+        timestamp=datetime.now(timezone.utc).isoformat(),
+    )
+
+
+@app.post("/case/draft", response_model=CaseDraftResponse)
+async def case_draft(request: CaseDraftRequest):
+    """Case-assistant track: research + evidence review + drafting.
+
+    Requires `acknowledge_draft_only: true` on every call — this is not a
+    one-time setting, because every draft this endpoint returns is, without
+    exception, a preliminary draft for a licensed lawyer's review, never a
+    filing-ready document. See src/subagents/drafting_subagent.py.
+    """
+    if not request.acknowledge_draft_only:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "acknowledge_draft_only must be true: this endpoint only ever "
+                "returns a preliminary draft for a licensed lawyer's review, "
+                "never a filing-ready document."
+            ),
+        )
+    if _case_agent is None:
+        raise HTTPException(status_code=503, detail="Case-assistant agent not initialized yet")
+
+    result = _case_agent.prepare_draft(
+        case_facts=request.case_facts, document_type=request.document_type
+    )
+    return CaseDraftResponse(
+        draft_text=result.draft_text,
+        language=result.language,
+        handoff_required=result.handoff_required,
+        research_iterations=result.research_iterations,
+        evidence_gaps=[
+            EvidenceGapResponse(description=g.description, why_it_matters=g.why_it_matters)
+            for g in result.evidence_gaps
+        ],
+        web_sources_consulted=[
+            WebSourceResponse(title=w.title, url=w.url) for w in result.web_sources_consulted
+        ],
         timestamp=datetime.now(timezone.utc).isoformat(),
     )
 
