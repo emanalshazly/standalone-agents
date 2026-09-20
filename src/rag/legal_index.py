@@ -14,6 +14,24 @@ implementation and are real here:
    field. src/verification/citation_verifier.py depends on this metadata
    being present and honest — a chunk with verified_by_lawyer=False must
    never be silently presented as settled law.
+
+Two things worth knowing if you touch this file (found by actually running
+the insert path end-to-end with a stub embedding, not just unit-testing
+`_load_seed_nodes` in isolation, which is all the original PR's tests did):
+
+- Chroma's flat metadata (via llama_index's `flat_metadata=True` default)
+  only accepts str/int/float/None values — a raw `list[str]` for
+  `source_urls` raises `ValueError` the first time a node is actually
+  inserted. `source_urls` is therefore stored as a JSON string
+  (`_encode_urls`/`_decode_urls`) and decoded back on retrieval.
+- llama_index reconstructs a node's `.metadata` on retrieval from an
+  embedded `_node_content` JSON blob (see `metadata_dict_to_node`), NOT
+  from Chroma's flat metadata row directly. A naive
+  `collection.update(ids=..., metadatas=[...])` to flip
+  `verified_by_lawyer` would silently have no effect on what `retrieve()`
+  returns. `mark_entry_verified()` instead deletes and re-inserts the
+  chunks through the normal `insert_nodes` path, which rebuilds
+  `_node_content` correctly.
 """
 
 from __future__ import annotations
@@ -46,6 +64,31 @@ except ImportError:  # pragma: no cover - optional heavy dependency
 import chromadb
 
 logger = logging.getLogger(__name__)
+
+# Bookkeeping keys llama_index adds to Chroma's flat metadata row (see
+# node_to_metadata_dict) — never treat these as our own custom fields.
+_BOOKKEEPING_METADATA_KEYS = {
+    "_node_content",
+    "_node_type",
+    "document_id",
+    "doc_id",
+    "ref_doc_id",
+}
+
+
+def _encode_urls(urls: list[str]) -> str:
+    """Chroma's flat metadata only accepts str/int/float/None — a raw list
+    raises ValueError at insert time. Store as a JSON string instead."""
+    return json.dumps(urls, ensure_ascii=False)
+
+
+def _decode_urls(value) -> list[str]:
+    if isinstance(value, list):  # already decoded (e.g. in tests)
+        return value
+    try:
+        return json.loads(value) if value else []
+    except (json.JSONDecodeError, TypeError):
+        return []
 
 
 @dataclass
@@ -89,15 +132,18 @@ class EgyptianLegalIndex:
         collection_name: str = "egypt_legal_literacy",
         embedding_model: str = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
         reranker_model: str = "BAAI/bge-reranker-v2-m3",
-        seed_json_path: Optional[str] = None,
+        seed_json_paths: Optional[list[str]] = None,
     ):
         self.persist_directory = persist_directory
         self.collection_name = collection_name
-        self.seed_json_path = seed_json_path or str(
-            Path(__file__).resolve().parent.parent
-            / "knowledge"
-            / "legal_eg"
-            / "labor_law_2025_seed.json"
+
+        default_seed_dir = (
+            Path(__file__).resolve().parent.parent / "knowledge" / "legal_eg"
+        )
+        # Any file matching *_seed.json is picked up automatically — adding
+        # a new law's seed content is a new file, not a code change here.
+        self.seed_json_paths = seed_json_paths or sorted(
+            str(p) for p in default_seed_dir.glob("*_seed.json")
         )
 
         Path(persist_directory).mkdir(parents=True, exist_ok=True)
@@ -116,17 +162,34 @@ class EgyptianLegalIndex:
             vector_store=self._vector_store
         )
 
-        if self._collection.count() == 0:
-            logger.info("Empty collection — building index from seed corpus")
-            nodes = self._load_seed_nodes(self.seed_json_path)
-            self._index = VectorStoreIndex(
-                nodes, storage_context=self._storage_context
-            )
-        else:
+        if self._collection.count() > 0:
             logger.info(
                 "Loaded existing collection with %d chunks", self._collection.count()
             )
             self._index = VectorStoreIndex.from_vector_store(self._vector_store)
+            existing_entry_ids = self._get_existing_entry_ids()
+        else:
+            logger.info("Empty collection — building index from seed corpus")
+            self._index = VectorStoreIndex([], storage_context=self._storage_context)
+            existing_entry_ids = set()
+
+        # Idempotent per-file insert: a seed file added after the collection
+        # was first built only contributes entry_ids not already present —
+        # dropping in a new *_seed.json is safe to run against a populated
+        # collection without duplicating or rebuilding existing chunks.
+        for seed_path in self.seed_json_paths:
+            candidate_nodes = self._load_seed_nodes(seed_path)
+            new_nodes = [
+                n
+                for n in candidate_nodes
+                if n.metadata["entry_id"] not in existing_entry_ids
+            ]
+            if new_nodes:
+                logger.info(
+                    "Inserting %d new seed nodes from %s", len(new_nodes), seed_path
+                )
+                self._index.insert_nodes(new_nodes)
+                existing_entry_ids.update(n.metadata["entry_id"] for n in new_nodes)
 
         self._reranker = None
         if _HAS_RERANKER:
@@ -165,7 +228,7 @@ class EgyptianLegalIndex:
                 "effective_date": law["effective_date"],
                 "article_number": entry["article_number"],
                 "article_number_confidence": entry["article_number_confidence"],
-                "source_urls": data["_meta"]["secondary_sources_consulted"],
+                "source_urls": _encode_urls(data["_meta"]["secondary_sources_consulted"]),
                 "verified_by_lawyer": entry["verified_by_lawyer"],
                 "topic_ar": entry["topic_ar"],
                 "topic_en": entry["topic_en"],
@@ -192,6 +255,12 @@ class EgyptianLegalIndex:
             {n.metadata["verified_by_lawyer"] for n in nodes},
         )
         return nodes
+
+    def _get_existing_entry_ids(self) -> set[str]:
+        result = self._collection.get(include=["metadatas"])
+        return {
+            m["entry_id"] for m in result["metadatas"] if m and "entry_id" in m
+        }
 
     def retrieve(
         self,
@@ -225,7 +294,7 @@ class EgyptianLegalIndex:
                     law_name_en=md["law_name_en"],
                     article_number=md["article_number"],
                     article_number_confidence=md["article_number_confidence"],
-                    source_urls=md["source_urls"],
+                    source_urls=_decode_urls(md["source_urls"]),
                     verified_by_lawyer=md["verified_by_lawyer"],
                     rerank_score=float(nws.score) if nws.score is not None else 0.0,
                     metadata=md,
@@ -259,7 +328,7 @@ class EgyptianLegalIndex:
                 "law_name_en": law_name_en,
                 "article_number": article_number,
                 "article_number_confidence": "lawyer_verified",
-                "source_urls": source_urls,
+                "source_urls": _encode_urls(source_urls),
                 "verified_by_lawyer": True,
                 "reviewer": reviewer,
             },
@@ -270,3 +339,57 @@ class EgyptianLegalIndex:
             entry_id,
             reviewer,
         )
+
+    def mark_entry_verified(
+        self, entry_id: str, reviewer: str, source_urls: list[str]
+    ) -> int:
+        """
+        Confirm an EXISTING seed entry (both ar+en chunks) as reviewed and
+        correct as written — distinct from `add_verified_chunk`, which
+        models a user/lawyer proposing NEW or CORRECTED text via
+        src/feedback/curation_pipeline.py. Routing a plain "yes, this is
+        right" confirmation through that flow would pollute the review
+        queue with fake corrections; this method is the honest, separate
+        path for that case.
+
+        Implementation note: this deletes and re-inserts the matching
+        chunks rather than calling `collection.update()` on their metadata
+        in place. llama_index reconstructs a node's `.metadata` on
+        retrieval from an embedded `_node_content` JSON blob, not from
+        Chroma's flat metadata row — a flat-only update would silently not
+        change what `retrieve()` returns. Delete+reinsert goes through the
+        same `insert_nodes` path the rest of this class already uses, which
+        rebuilds `_node_content` correctly.
+        """
+        matches = self._collection.get(
+            where={"entry_id": entry_id}, include=["metadatas", "documents"]
+        )
+        if not matches["ids"]:
+            logger.warning(
+                "mark_entry_verified: no chunks found for entry_id=%s", entry_id
+            )
+            return 0
+
+        self._collection.delete(ids=matches["ids"])
+
+        new_nodes = []
+        for text, old_metadata in zip(matches["documents"], matches["metadatas"]):
+            custom_metadata = {
+                k: v
+                for k, v in old_metadata.items()
+                if k not in _BOOKKEEPING_METADATA_KEYS
+            }
+            custom_metadata["verified_by_lawyer"] = True
+            custom_metadata["reviewer"] = reviewer
+            custom_metadata["article_number_confidence"] = "lawyer_verified"
+            custom_metadata["source_urls"] = _encode_urls(source_urls)
+            new_nodes.append(TextNode(text=text, metadata=custom_metadata))
+
+        self._index.insert_nodes(new_nodes)
+        logger.info(
+            "Marked %d chunk(s) verified_by_lawyer=True for entry_id=%s (reviewer=%s)",
+            len(new_nodes),
+            entry_id,
+            reviewer,
+        )
+        return len(new_nodes)
