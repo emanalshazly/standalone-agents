@@ -1,0 +1,83 @@
+{
+  "_meta": {
+    "description": "Seed knowledge base for the Egyptian consumer-protection slice of the legal-literacy agent. This is SEED DATA, not a certified legal source.",
+    "law": {
+      "name_ar": "قانون حماية المستهلك رقم 181 لسنة 2018",
+      "name_en": "Consumer Protection Law No. 181 of 2018 (Egypt)",
+      "official_gazette_date": "2018-09-13",
+      "effective_date": "2018-12-14"
+    },
+    "IMPORTANT_VERIFICATION_STATUS": "verified_by_lawyer=false for every entry below. Article numbers and summaries were compiled by an AI research agent from secondary legal-analysis sources (law-firm client alerts and the WIPO Lex/Andersen English translations), NOT verified word-for-word against the primary Official Gazette Arabic text. Only Article 36 (pre-contract e-commerce disclosure) was cited with a specific article number across sources; the return/refund/warranty windows below (14 days, 30 days, 2 years) were consistently reported across multiple secondary sources but WITHOUT a specific article number in the search results used to compile this file. Every entry MUST be cross-checked against the primary Gazette text by a licensed Egyptian lawyer before this data is used to answer real user questions, per the project's citation-verification requirement (see src/verification/citation_verifier.py and docs/eval/citation_audit.md).",
+    "secondary_sources_consulted": [
+      "https://eg.andersen.com/translation-law-181-2018/",
+      "https://eg.andersen.com/legal-alert-101/",
+      "https://www.lexology.com/library/detail.aspx?g=0dea9950-f50e-4666-952b-d490ab77432f",
+      "https://www.wipo.int/wipolex/en/legislation/details/19866",
+      "https://www.africa-laws.org/Egypt/Consumer%20Law/Law%20No.%20181%20of%202018%20on%20Consumer%20Protection.pdf",
+      "https://shalakany.com/new-consumer-protection-law-executive-regulations/",
+      "https://alp.unescwa.org/index.php/legislations/law-181-2018-promulgating-consumer-protection-law"
+    ]
+  },
+  "entries": [
+    {
+      "id": "precontract_disclosure_ecommerce",
+      "topic_ar": "الإفصاح الإلزامي قبل التعاقد في البيع عن بُعد/الإلكتروني",
+      "topic_en": "Mandatory pre-contract disclosure for e-commerce/distance sales",
+      "article_number": "36",
+      "article_number_confidence": "single_source_only",
+      "summary_ar": "بحسب المادة 36 من قانون حماية المستهلك، يجب على المُورِّد قبل إتمام التعاقد عن بُعد أن يقدّم للمستهلك معلومات واضحة عن هوية المُورِّد، والمنتج، والضمان، وخدمات ما بعد البيع، وموعد ومكان التسليم.",
+      "summary_en": "Under Article 36 of the Consumer Protection Law, before completing a distance/e-commerce contract, the supplier must provide the consumer with clear information about the supplier's identity, the product, the warranty, post-sale services, and the delivery date and location.",
+      "verified_by_lawyer": false
+    },
+    {
+      "id": "return_exchange_14_days",
+      "topic_ar": "حق الاسترجاع أو الاستبدال خلال 14 يوماً بدون إبداء سبب",
+      "topic_en": "14-day no-reason return/exchange right",
+      "article_number": "unconfirmed",
+      "article_number_confidence": "no_article_number_found_in_search",
+      "summary_ar": "تشير مصادر ثانوية متعددة إلى أن للمستهلك الحق في استرجاع أو استبدال السلعة خلال 14 يوماً من تاريخ الشراء دون إبداء أسباب، بشرط أن تكون السلعة بحالتها الأصلية ومعه إيصال الشراء. توجد استثناءات على هذا الحق (مثل السلع سريعة التلف، أو التي تتأثر تغليفها/نظافتها بالفتح، أو الكتب والمجلات والبرامج الإعلامية). لم يتم تحديد رقم مادة دقيق من نتائج البحث المتاحة.",
+      "summary_en": "Multiple secondary sources indicate the consumer has the right to return or exchange goods within 14 days of purchase without giving a reason, provided the goods are in their original condition and the purchase receipt is available. Exceptions exist (e.g. perishable goods, goods whose packaging/hygiene is affected once opened, books/magazines/media). No precise article number was found in the available search results.",
+      "verified_by_lawyer": false
+    },
+    {
+      "id": "return_exchange_30_days_defective",
+      "topic_ar": "تمديد مهلة الاسترجاع إلى 30 يوماً للسلعة المعيبة",
+      "topic_en": "30-day return window for defective/non-conforming goods",
+      "article_number": "unconfirmed",
+      "article_number_confidence": "no_article_number_found_in_search",
+      "summary_ar": "إذا تبيّن أن السلعة معيبة أو غير مطابقة للمواصفات المتفق عليها، تمتد مهلة حق المستهلك في الاسترجاع واسترداد المبلغ المدفوع إلى 30 يوماً من تاريخ التسليم. لم يتم تحديد رقم مادة دقيق من نتائج البحث المتاحة.",
+      "summary_en": "If the goods turn out to be defective or non-conforming with the agreed specifications, the consumer's right to return the goods and receive a refund extends to 30 days from the date of delivery. No precise article number was found in the available search results.",
+      "verified_by_lawyer": false
+    },
+    {
+      "id": "distance_contract_withdrawal",
+      "topic_ar": "حق الانسحاب من عقد البيع عن بُعد واسترداد المبلغ",
+      "topic_en": "Distance-contract withdrawal right and refund timeline",
+      "article_number": "unconfirmed",
+      "article_number_confidence": "no_article_number_found_in_search",
+      "summary_ar": "للمستهلك الذي يتعاقد عن بُعد الحق في الانسحاب من العقد خلال 14 يوماً من استلام السلعة، وعلى المُورِّد رد المبلغ المدفوع خلال مدة لا تتجاوز 7 أيام من تاريخ استرداد المنتج. لم يتم تحديد رقم مادة دقيق من نتائج البحث المتاحة.",
+      "summary_en": "A consumer who enters a distance contract has the right to withdraw from it within 14 days of receiving the goods, and the supplier must refund the amount paid within a period not exceeding 7 days from the date the product is returned. No precise article number was found in the available search results.",
+      "verified_by_lawyer": false
+    },
+    {
+      "id": "durable_goods_warranty",
+      "topic_ar": "الحد الأدنى لضمان السلع المُعمِّرة",
+      "topic_en": "Minimum warranty period for durable goods",
+      "article_number": "unconfirmed",
+      "article_number_confidence": "no_article_number_found_in_search",
+      "summary_ar": "يلتزم مُورِّدو السلع المُعمِّرة (مثل الأجهزة المنزلية) بضمانها ضد عيوب الصناعة لمدة لا تقل عن سنتين من تاريخ استلام المستهلك لها، ويشمل الضمان الفحص والإصلاح وتوفير قطع الغيار الأصلية وتحمّل تكاليف نقل المنتج إذا لزم إصلاحه خارج مكان المستهلك. لم يتم تحديد رقم مادة دقيق من نتائج البحث المتاحة.",
+      "summary_en": "Suppliers of durable goods (e.g. home appliances) must warrant them against manufacturing defects for at least 2 years from the date the consumer receives them, with the warranty covering inspection, repair, original spare parts, and the cost of transporting the product if it needs to be repaired away from the consumer's premises. No precise article number was found in the available search results.",
+      "verified_by_lawyer": false
+    },
+    {
+      "id": "return_exceptions",
+      "topic_ar": "استثناءات حق الاسترجاع",
+      "topic_en": "Exceptions to the return/exchange right",
+      "article_number": "unconfirmed",
+      "article_number_confidence": "no_article_number_found_in_search",
+      "summary_ar": "لا ينطبق حق الاسترجاع خلال 14 يوماً على بعض السلع، من أهمها: السلع سريعة التلف، والسلع التي تتأثر إمكانية استرجاعها بفتح تغليفها لأسباب صحية أو تتعلق بطبيعتها، والكتب والصحف والمجلات والبرامج الإعلامية. لم يتم تحديد رقم مادة دقيق من نتائج البحث المتاحة.",
+      "summary_en": "The 14-day return right does not apply to certain goods, notably: perishable goods, goods whose returnability is affected by opening their packaging for hygiene or nature-related reasons, and books, newspapers, magazines, and media programmes. No precise article number was found in the available search results.",
+      "verified_by_lawyer": false
+    }
+  ]
+}

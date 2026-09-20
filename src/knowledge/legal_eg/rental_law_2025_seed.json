@@ -1,0 +1,81 @@
+{
+  "_meta": {
+    "description": "Seed knowledge base for the Egyptian rental/lease-law slice of the legal-literacy agent. This is SEED DATA, not a certified legal source.",
+    "law": {
+      "name_ar": "قانون تنظيم العلاقة بين المؤجر والمستأجر رقم 164 لسنة 2025",
+      "name_en": "Law No. 164 of 2025 Regulating the Relationship between Landlords and Tenants (Egypt)",
+      "official_gazette_date": "2025-08-05",
+      "effective_date": "2025-08-05"
+    },
+    "IMPORTANT_VERIFICATION_STATUS": "verified_by_lawyer=false for every entry below. Article numbers and summaries were compiled by an AI research agent from secondary legal-analysis sources (law-firm client alerts), NOT from the primary Official Gazette text, which this agent could not directly access. Several entries below have NO confirmed article number at all (marked 'no_article_number_found_in_search') because the secondary sources consulted described the rule without citing a specific article. Every entry MUST be cross-checked against the primary Gazette text by a licensed Egyptian lawyer before this data is used to answer real user questions, per the project's citation-verification requirement (see src/verification/citation_verifier.py and docs/eval/citation_audit.md).",
+    "secondary_sources_consulted": [
+      "https://eldib.com/law-no-164-of-2025-what-egypts-new-rental-regulations-mean-for-landlords-and-tenants/",
+      "https://matoukbassiouny.com/egypts-2025-rent-reform-unveiled-new-era-for-tenants-and-landlords/",
+      "https://www.haqq.ai/blog/ijar-qadim-ikhla-misr",
+      "https://riad-riad.com/a-new-legal-framework-for-real-property-rentals-in-egypt/",
+      "https://www.jurist.org/features/2025/12/09/egypts-rental-reform-balancing-property-rights-and-social-justice-after-decades-of-distortion/"
+    ]
+  },
+  "entries": [
+    {
+      "id": "residential_lease_duration",
+      "topic_ar": "مدة عقود إيجار الوحدات السكنية القديمة",
+      "topic_en": "Duration of old residential rental contracts",
+      "article_number": "2",
+      "article_number_confidence": "single_source_only",
+      "summary_ar": "بحسب المادة 2 من القانون رقم 164 لسنة 2025، تنتهي عقود إيجار الوحدات السكنية الخاضعة للامتداد القانوني (الإيجار القديم) بعد مرور 7 سنوات من تاريخ العمل بالقانون (5 أغسطس 2025).",
+      "summary_en": "Under Article 2 of Law No. 164 of 2025, residential unit leases subject to the old legal-extension rent system expire 7 years after the law's effective date (5 August 2025).",
+      "verified_by_lawyer": false
+    },
+    {
+      "id": "nonresidential_lease_duration",
+      "topic_ar": "مدة عقود إيجار الوحدات غير السكنية القديمة",
+      "topic_en": "Duration of old non-residential (commercial) rental contracts",
+      "article_number": "2",
+      "article_number_confidence": "single_source_only",
+      "summary_ar": "بحسب نفس المادة 2، تنتهي عقود إيجار الوحدات غير السكنية (التجارية/الإدارية) الخاضعة للإيجار القديم بعد مرور 5 سنوات من تاريخ العمل بالقانون.",
+      "summary_en": "Under the same Article 2, old-rent non-residential (commercial/administrative) unit leases expire 5 years after the law's effective date.",
+      "verified_by_lawyer": false
+    },
+    {
+      "id": "vacate_on_term_end",
+      "topic_ar": "التزام المستأجر بالإخلاء عند انتهاء المدة",
+      "topic_en": "Tenant's duty to vacate when the lease term ends",
+      "article_number": "2_MUKARRAR",
+      "article_number_confidence": "single_source_only",
+      "summary_ar": "بحسب مادة أُضيفت للقانون تُعرف بـ'المادة 2 مكرر'، يجب على المستأجر (أو خلفه العام أو الخاص) إخلاء الوحدة المؤجرة وردّها لصاحبها أو المؤجر عند انتهاء مدة الإيجار المحددة في العقد أو القانون.",
+      "summary_en": "Under a newly added provision referred to as 'Article 2 bis', the tenant (or their general/specific successor) must vacate the leased unit and return it to the owner/lessor at the end of the lease term specified in the contract or the law.",
+      "verified_by_lawyer": false
+    },
+    {
+      "id": "eviction_via_summary_judge",
+      "topic_ar": "إجراءات الإخلاء القضائي عند رفض المستأجر المغادرة",
+      "topic_en": "Judicial eviction procedure if the tenant refuses to vacate",
+      "article_number": "unconfirmed",
+      "article_number_confidence": "no_article_number_found_in_search",
+      "summary_ar": "إذا رفض المستأجر إخلاء الوحدة عند انتهاء مدة الإيجار، يجوز لصاحب العمل/المالك أو المؤجر التقدم بطلب لقاضي الأمور المستعجلة بالمحكمة المختصة لإصدار أمر بالإخلاء، دون الإخلال بحق المطالبة بالتعويض إن وُجد مبرر لذلك. لم يتم تحديد رقم مادة دقيق من نتائج البحث المتاحة.",
+      "summary_en": "If the tenant refuses to vacate the unit when the lease term ends, the owner/lessor may petition the summary-matters judge (قاضي الأمور المستعجلة) at the competent court for an eviction order, without prejudice to any right to claim compensation where justified. No precise article number was found in the available search results.",
+      "verified_by_lawyer": false
+    },
+    {
+      "id": "old_rent_annual_increase",
+      "topic_ar": "الزيادة السنوية على قيمة الإيجار القديم",
+      "topic_en": "Annual increase on old-rent tenancy values",
+      "article_number": "unconfirmed",
+      "article_number_confidence": "no_article_number_found_in_search",
+      "summary_ar": "تشير المصادر الثانوية إلى فرض زيادة سنوية إلزامية بنسبة 15% على قيمة إيجارات الوحدات الخاضعة لنظام الإيجار القديم، تبدأ من سبتمبر 2026، وتُحسب على القيمة الإيجارية الجديدة المحدَّدة بعد تطبيق أحكام القانون، وليس على القيمة القديمة التي كان يدفعها المستأجر سابقاً. لم يتم تحديد رقم مادة دقيق من نتائج البحث المتاحة.",
+      "summary_en": "Secondary sources indicate a mandatory 15% annual increase on old-rent tenancy values, starting September 2026, calculated on the newly determined rental value established after the law's provisions apply, not on the tenant's previous old-rent amount. No precise article number was found in the available search results.",
+      "verified_by_lawyer": false
+    },
+    {
+      "id": "civil_code_general_reference",
+      "topic_ar": "القانون المدني كمرجع عام لعقود الإيجار",
+      "topic_en": "The Civil Code as the general reference for lease contracts",
+      "article_number": "unconfirmed",
+      "article_number_confidence": "no_article_number_found_in_search",
+      "summary_ar": "يبقى القانون المدني رقم 131 لسنة 1948 هو المرجع العام للقواعد الأساسية لعقد الإيجار (تحديد المدة، القيمة الإيجارية، التزامات الطرفين، حالات الإنهاء) في كل ما لا يرد بشأنه نص خاص في قوانين الإيجار الأحدث مثل القانون رقم 164 لسنة 2025.",
+      "summary_en": "The Civil Code No. 131 of 1948 remains the general reference for the basic rules of lease contracts (term, rental value, parties' obligations, termination) for anything not specifically addressed by newer rental laws such as Law No. 164 of 2025.",
+      "verified_by_lawyer": false
+    }
+  ]
+}

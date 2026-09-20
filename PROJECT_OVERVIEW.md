@@ -191,11 +191,14 @@ lawyer's review.
 - No Langfuse tracing wired in yet (it's in `requirements.txt` but not yet
   called from the graph nodes) — tracing every node's cost/latency/verdict
   is the natural next step once this runs against real traffic.
-- The knowledge base covers seven labor-law topics. It does not cover
-  rental/lease or consumer contracts yet, despite those being in the
-  declared in-scope topic list in `config/config.example.yaml` — scope was
-  declared ahead of content on purpose (see `docs/eval/citation_audit.md`
-  gate: content should not outrun verification).
+- The knowledge base now covers labor law (7 topics), rental/lease law
+  (6 topics, `rental_law_2025_seed.json`), and consumer protection
+  (6 topics, `consumer_protection_2018_seed.json`) — closing the gap this
+  bullet used to describe. All three are still pending lawyer review; see
+  `docs/eval/citation_audit.md`'s three tables and its runbook section for
+  how a review session actually gets carried out
+  (`scripts/mark_reviewed.py` for "confirmed as-is", the existing
+  `/feedback/*` flow for corrections).
 - No lawyer has reviewed the seed knowledge base yet. This is the single
   most important open item before any real user sees this agent's answers.
 - The case-assistant track has not been reviewed by a lawyer at all — see
