@@ -1,20 +1,9 @@
 """
-Standalone Domain Agents - نظام الوكلاء المتخصصين
-A revolutionary multi-domain agent system with RAG and continuous learning
+Egyptian Arabic Legal-Literacy Agent
+A single-domain, citation-verified legal Q&A agent for individuals and
+small businesses in Egypt, built on LangGraph + LlamaIndex + Langfuse.
 """
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"
 __author__ = "Standalone Agents Team"
 __license__ = "MIT"
-
-from src.core.base_agent import BaseAgent
-from src.core.orchestrator import AgentOrchestrator
-from src.core.rag_system import RAGSystem
-from src.core.learning_system import ContinuousLearningSystem
-
-__all__ = [
-    "BaseAgent",
-    "AgentOrchestrator",
-    "RAGSystem",
-    "ContinuousLearningSystem",
-]

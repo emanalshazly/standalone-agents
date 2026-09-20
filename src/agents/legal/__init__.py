@@ -1,5 +1,5 @@
-"""Legal domain agent"""
+"""Egyptian legal-literacy agent."""
 
-from src.agents.legal.legal_agent import LegalAgent
+from src.agents.legal.legal_agent import EgyptianLegalAgent, LegalAnswer
 
-__all__ = ["LegalAgent"]
+__all__ = ["EgyptianLegalAgent", "LegalAnswer"]

@@ -131,53 +131,49 @@ def test_symptom_analysis():
     assert "analysis" in result
 ```
 
-## 🎯 Adding a New Agent
+## 🎯 Extending the Legal Agent
 
-To add a new domain agent:
+This project deliberately scoped itself down to a single domain (Egyptian
+labor/contract literacy) after a competitive/technical audit found that a
+generic multi-domain `BaseAgent` pattern was reinventing weaker versions of
+mature open-source frameworks — see
+[PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) for the full reasoning. There is
+no `BaseAgent` to subclass anymore, and no plan to add a seventh
+generalist domain. Contributions in this domain are welcome; a proposal to
+add another unrelated vertical back into this repo should probably be its
+own project instead.
 
-1. **Create agent directory**
-   ```bash
-   mkdir -p src/agents/your_domain
-   touch src/agents/your_domain/__init__.py
-   touch src/agents/your_domain/your_domain_agent.py
-   ```
+The two ways to extend this agent safely:
 
-2. **Implement the agent**
-   ```python
-   from src.core.base_agent import BaseAgent, AgentContext
+### 1. Add or correct knowledge-base content
 
-   class YourDomainAgent(BaseAgent):
-       def __init__(self, **kwargs):
-           super().__init__(
-               agent_name="YourDomainAgent",
-               domain="your_domain",
-               **kwargs
-           )
+Do **not** hand-edit `src/knowledge/legal_eg/labor_law_2025_seed.json` and
+call it verified. The real path is:
 
-       def _define_capabilities(self) -> List[str]:
-           return ["capability1", "capability2"]
+1. `POST /feedback/submit` (or `CurationPipeline.submit_correction(...)`)
+   with the query, the current (wrong/incomplete) answer, and your proposed
+   correction, plus the primary source (Official Gazette article/date), not
+   a secondary law-firm summary.
+2. A named human reviewer approves it via `POST /feedback/{id}/approve` (or
+   `CurationPipeline.approve(...)`), which embeds it into
+   `EgyptianLegalIndex` tagged `verified_by_lawyer=True`.
+3. Update `docs/eval/citation_audit.md`'s row for that topic.
 
-       def _get_system_prompt(self, language: str = "en") -> str:
-           # Return domain-specific prompt
-           pass
+### 2. Extend scope (new legal topics, e.g. rental/consumer contracts)
 
-       def _extract_pain_points(self, query: str, context: AgentContext) -> List[str]:
-           # Extract domain pain points
-           pass
-   ```
-
-3. **Add tests**
-   ```python
-   # tests/agents/test_your_domain_agent.py
-   def test_your_domain_agent():
-       agent = YourDomainAgent()
-       # Add tests
-   ```
-
-4. **Update documentation**
-   - Add to README.md
-   - Include usage examples
-   - Document pain points addressed
+1. Add the topic to `scope.in_scope_topics` in `config/config.example.yaml`
+   and `IN_SCOPE_TOPICS` in `src/graph/legal_graph.py` — otherwise
+   `classify_intent` will hand off the query even with good source content.
+2. Add seed entries following the same JSON structure as
+   `labor_law_2025_seed.json`, with the same honesty requirements: real
+   sources cited, `verified_by_lawyer: false` until a lawyer reviews it,
+   and any conflicting information across sources flagged explicitly
+   rather than resolved by guessing (see the `notice_period_indefinite`
+   entry for the pattern).
+3. Add corresponding rows to `tests/eval/golden_qa.jsonl` and
+   `docs/eval/citation_audit.md`.
+4. Run `pytest tests/` and `python tests/eval/run_eval.py --mode retrieval`
+   before opening a PR.
 
 ## 🌐 Internationalization (i18n)
 

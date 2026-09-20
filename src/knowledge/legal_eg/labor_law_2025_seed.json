@@ -1,0 +1,92 @@
+{
+  "_meta": {
+    "description": "Seed knowledge base for the Egyptian labor-law slice of the legal-literacy agent. This is SEED DATA, not a certified legal source.",
+    "law": {
+      "name_ar": "قانون العمل رقم 14 لسنة 2025",
+      "name_en": "Labor Law No. 14 of 2025 (Egypt)",
+      "official_gazette_date": "2025-05-03",
+      "effective_date": "2025-09-01",
+      "applies_to_disputes_from": "2025-10-01"
+    },
+    "IMPORTANT_VERIFICATION_STATUS": "verified_by_lawyer=false for every entry below. Article numbers and summaries were compiled by an AI research agent from secondary legal-analysis sources (law-firm client alerts), NOT from the primary Official Gazette text, which this agent could not directly access. Some secondary sources conflict on article numbers (see entry 'notice_period_indefinite'). Every entry MUST be cross-checked against the primary Gazette text by a licensed Egyptian lawyer before this data is used to answer real user questions, per the project's citation-verification requirement (see src/verification/citation_verifier.py and docs/eval/citation_audit.md).",
+    "secondary_sources_consulted": [
+      "https://hnzlaw.com/employee-notice-period-2025-egypt-understanding-the-new-rules-under-labor-law-no-14-of-2025/",
+      "https://hnzlaw.com/how-does-labor-law-14-of-2025-affect-employment-contracts-in-egypt/",
+      "https://www.lexology.com/library/detail.aspx?g=842cf812-8c1e-49d4-bfaa-e6401b47b5d2",
+      "https://eg.andersen.com/egypts-labour-law-14-2025/",
+      "https://amereller.com/publication/egypt-new-labor-law-no-14-of-2025/"
+    ]
+  },
+  "entries": [
+    {
+      "id": "probation_period",
+      "topic_ar": "فترة الاختبار",
+      "topic_en": "Probation period",
+      "article_number": "104",
+      "article_number_confidence": "single_source_only",
+      "summary_ar": "بحسب المادة 104 من قانون العمل الجديد، لا يجوز فرض فترة اختبار إلا إذا كانت مدة العقد أكثر من ستة أشهر، وفي هذه الحالة لا يجوز أن تتجاوز فترة الاختبار ثلاثة أشهر، ولا يجوز تجديدها.",
+      "summary_en": "Under Article 104 of the new Labor Law, a probation period may only be imposed if the contract term exceeds six months, and it cannot exceed three months or be renewed.",
+      "verified_by_lawyer": false
+    },
+    {
+      "id": "working_hours",
+      "topic_ar": "ساعات العمل اليومية والأسبوعية",
+      "topic_en": "Daily and weekly working hours",
+      "article_number": "117",
+      "article_number_confidence": "single_source_only",
+      "summary_ar": "بحسب المادة 117، لا يجوز تكليف العامل بالعمل الفعلي أكثر من 8 ساعات يومياً أو 48 ساعة أسبوعياً، ولا تُحسب فترات الراحة وتناول الطعام ضمن ساعات العمل الفعلي.",
+      "summary_en": "Under Article 117, an employee may not be required to work more than 8 actual hours per day or 48 hours per week; rest and meal breaks are not counted as actual working time.",
+      "verified_by_lawyer": false
+    },
+    {
+      "id": "overtime_cap",
+      "topic_ar": "الحد الأقصى للعمل الإضافي",
+      "topic_en": "Overtime cap",
+      "article_number": "121",
+      "article_number_confidence": "single_source_only",
+      "summary_ar": "بحسب المادة 121، يمكن أن يصل إجمالي وقت التواجد في العمل (شاملاً العمل الإضافي) إلى 12 ساعة يومياً كحد أقصى. وتم استبدال شرط الحصول على إذن مسبق من الجهة المختصة للعمل الإضافي بإخطارها خلال 7 أيام من واقعة العمل الإضافي.",
+      "summary_en": "Under Article 121, total time at work including overtime may reach a maximum of 12 hours per day. The prior-authorization requirement for overtime was replaced with a post-notification to the Ministry of Manpower within 7 days of the overtime.",
+      "verified_by_lawyer": false
+    },
+    {
+      "id": "notice_period_indefinite",
+      "topic_ar": "مهلة الإخطار قبل إنهاء عقد غير محدد المدة",
+      "topic_en": "Notice period before terminating an indefinite-term contract",
+      "article_number": "156_OR_123_DISPUTED",
+      "article_number_confidence": "CONFLICTING_ACROSS_SOURCES",
+      "summary_ar": "تشير معظم المصادر الثانوية إلى أن مهلة الإخطار قبل إنهاء عقد العمل غير محدد المدة أصبحت 3 أشهر لكلا الطرفين بغض النظر عن مدة الخدمة. لكن مصادر أخرى تشير إلى رقم مادة مختلف (بعضها يذكر المادة 156 وبعضها يذكر مسودة سابقة بالمادة 123 بمدد متدرجة شهرين/ثلاثة أشهر). هذا التعارض في رقم المادة بين المصادر الثانوية يعني أنه يجب التحقق من النص الرسمي في الجريدة الرسمية قبل الاعتماد على هذه المعلومة.",
+      "summary_en": "Most secondary sources state the notice period before terminating an indefinite-term contract is now 3 months for either party, regardless of length of service. However, sources disagree on the article number (some cite Article 156, others cite an earlier-draft Article 123 with a tiered 2/3-month structure). This conflict across secondary sources means the underlying Gazette text MUST be checked before relying on this figure.",
+      "verified_by_lawyer": false
+    },
+    {
+      "id": "severance_pay_indefinite",
+      "topic_ar": "مكافأة نهاية الخدمة للعقود غير محددة المدة",
+      "topic_en": "End-of-service severance pay for indefinite-term contracts",
+      "article_number": "165",
+      "article_number_confidence": "single_source_only",
+      "summary_ar": "بحسب المادة 165، في حالة العقود غير محددة المدة، تكون مكافأة نهاية الخدمة بما لا يقل عن أجر شهرين عن كل سنة خدمة، بالإضافة إلى مقابل مهلة الإخطار.",
+      "summary_en": "Under Article 165, for indefinite-term contracts, end-of-service severance pay is no less than two months' wages for each year of service, in addition to payment in lieu of the notice period.",
+      "verified_by_lawyer": false
+    },
+    {
+      "id": "fixed_term_early_termination",
+      "topic_ar": "إنهاء العقد محدد المدة قبل انتهائه من جانب صاحب العمل",
+      "topic_en": "Employer terminating a fixed-term contract before its end",
+      "article_number": "unconfirmed",
+      "article_number_confidence": "no_article_number_found_in_search",
+      "summary_ar": "إذا أنهى صاحب العمل عقداً محدد المدة قبل انتهائه، يستحق العامل تعويضاً يعادل أجر شهر عن كل سنة من سنوات الخدمة المتبقية أو المنقضية بحسب ما ورد في المصادر الثانوية. لم يتم تحديد رقم مادة دقيق من نتائج البحث المتاحة.",
+      "summary_en": "If an employer terminates a fixed-term contract before its end, secondary sources indicate the employee is entitled to compensation equal to one month's salary per year of service. No precise article number was found in the available search results.",
+      "verified_by_lawyer": false
+    },
+    {
+      "id": "annual_leave_tiers",
+      "topic_ar": "استحقاق الإجازة السنوية",
+      "topic_en": "Annual leave entitlement",
+      "article_number": "unconfirmed",
+      "article_number_confidence": "no_article_number_found_in_search",
+      "summary_ar": "تشير المصادر الثانوية إلى أن الإجازة السنوية تكون 15 يوماً خلال السنة الأولى من الخدمة، ثم 21 يوماً اعتباراً من السنة الثانية، وترتفع إلى 30 يوماً للعامل الذي أمضى 10 سنوات في الخدمة (لدى صاحب عمل واحد أو أكثر) أو بلغ سن الخمسين. وتُمنح 45 يوماً لذوي الإعاقة كحالة استثنائية. لم يتم تحديد رقم مادة دقيق من نتائج البحث المتاحة.",
+      "summary_en": "Secondary sources indicate annual leave is 15 days in the first year of service, rising to 21 days from the second year, and to 30 days for an employee with 10 years of service (with one or more employers) or who has reached age 50. Employees with disabilities are entitled to 45 days as an exception. No precise article number was found in the available search results.",
+      "verified_by_lawyer": false
+    }
+  ]
+}

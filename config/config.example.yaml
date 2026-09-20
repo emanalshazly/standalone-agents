@@ -1,5 +1,11 @@
-# Standalone Agents Configuration
-# Copy this file to config.yaml and update with your settings
+# Egyptian Legal-Literacy Agent Configuration
+# Copy this file to config.yaml and update with your settings.
+#
+# NOTE: only settings that are actually read by the code belong here.
+# The previous version of this file (multi-domain era) listed sections like
+# "rate_limiting: enabled: true" and "data_encryption" that were never wired
+# to any implementation. Keep this file honest: if you add a setting, wire it
+# up in the same change, or mark it clearly as "planned, not yet enforced".
 
 # LLM Provider Configuration
 llm:
@@ -7,115 +13,73 @@ llm:
   openai:
     api_key: "your-openai-api-key-here"
     model: "gpt-4-turbo-preview"
-    temperature: 0.7
-    max_tokens: 4096
+    temperature: 0.2  # low temperature: this drafts legal text, not creative writing
+    max_tokens: 2048
   anthropic:
     api_key: "your-anthropic-api-key-here"
     model: "claude-3-opus-20240229"
-    temperature: 0.7
-    max_tokens: 4096
+    temperature: 0.2
+    max_tokens: 2048
 
-# Vector Database Configuration
-vector_db:
-  type: "chromadb"  # Options: chromadb, faiss
-  persist_directory: "./src/knowledge/vectors"
-  embedding_model: "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
-
-# Learning System Configuration
-learning:
-  enabled: true
-  max_memory_size: 10000
-  feedback_threshold: 3.5
-  persistence_path: "./src/knowledge/learning"
-  auto_save_interval: 100
-
-# RAG System Configuration
+# RAG index configuration (src/rag/legal_index.py)
 rag:
-  enabled: true
+  persist_directory: "./src/knowledge/vectors/legal_eg"
+  embedding_model: "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
+  reranker_model: "BAAI/bge-reranker-v2-m3"  # multilingual, supports Arabic
   chunk_size: 512
   chunk_overlap: 50
-  top_k_results: 5
-  min_relevance_score: 0.0
+  top_k_retrieve: 8
+  top_k_after_rerank: 4
 
-# Orchestrator Configuration
-orchestrator:
-  max_workers: 5
-  enable_parallel: true
-  default_strategy: "consensus"  # Options: parallel, sequential, hierarchical, consensus
+# Citation verification (src/verification/citation_verifier.py)
+verification:
+  max_draft_retries: 2       # how many times draft_answer retries after failed verification
+  min_faithfulness_score: 0.85  # RAGAS threshold used in the eval harness (tests/eval)
 
-# Agent-Specific Configuration
-agents:
-  medical:
-    enabled: true
-    temperature: 0.5  # Lower for more conservative medical advice
-  legal:
-    enabled: true
-    temperature: 0.4
-  finance:
-    enabled: true
-    temperature: 0.6
-  education:
-    enabled: true
-    temperature: 0.7
-  ecommerce:
-    enabled: true
-    temperature: 0.8
-  customer_service:
-    enabled: true
-    temperature: 0.7
+# Feedback curation (src/feedback/curation_pipeline.py)
+# Corrections are queued for human (lawyer) review; nothing is auto-learned.
+feedback:
+  db_path: "./src/knowledge/feedback/review_queue.db"
+
+# Observability (Langfuse)
+langfuse:
+  enabled: false  # set true and provide keys via environment variables to enable tracing
+  public_key: "${LANGFUSE_PUBLIC_KEY}"
+  secret_key: "${LANGFUSE_SECRET_KEY}"
+  host: "https://cloud.langfuse.com"
 
 # Logging Configuration
 logging:
-  level: "INFO"  # Options: DEBUG, INFO, WARNING, ERROR
+  level: "INFO"
   format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-  file: "logs/agents.log"
-  max_bytes: 10485760  # 10MB
-  backup_count: 5
+  file: "logs/agent.log"
 
 # API Configuration
 api:
   host: "0.0.0.0"
   port: 8000
-  reload: false
-  cors_enabled: true
   cors_origins:
     - "http://localhost:3000"
-    - "http://localhost:8080"
-
-# Redis Configuration (for caching and state management)
-redis:
-  enabled: false
-  host: "localhost"
-  port: 6379
-  db: 0
-  password: null
-
-# Monitoring
-monitoring:
-  enabled: true
-  prometheus_port: 9090
-  sentry_dsn: null  # Add your Sentry DSN for error tracking
 
 # Multi-language Support
 languages:
   supported:
-    - "en"
     - "ar"
-  default: "en"
+    - "en"
+  default: "ar"
   auto_detect: true
 
-# Performance
-performance:
-  cache_responses: true
-  cache_ttl: 3600  # 1 hour
-  max_concurrent_requests: 100
-  request_timeout: 30
-
-# Security
-security:
-  enable_api_key: false
-  api_keys: []
-  rate_limiting:
-    enabled: true
-    requests_per_minute: 60
-  data_encryption: false
+# Scope guardrails (used by classify_intent node)
+# Anything outside these topics is routed to human handoff rather than answered.
+scope:
+  in_scope_topics:
+    - "employment_contracts"
+    - "labor_rights"
+    - "rental_and_lease_contracts"
+    - "consumer_contracts"
+    - "basic_civil_contract_terms"
+  explicitly_out_of_scope:
+    - "criminal_law"
+    - "litigation_strategy"
+    - "court_filings"
+    - "tax_law"

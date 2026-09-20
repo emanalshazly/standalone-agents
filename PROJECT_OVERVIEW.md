@@ -1,312 +1,130 @@
-# Project Overview - نظرة عامة على المشروع
+# Project Overview — Why This Pivot, and the Research Behind It
 
-<div dir="rtl">
+This document is the record of the analysis that turned a six-domain
+generalist agent demo into a single-domain Egyptian legal-literacy agent.
+It exists so the reasoning isn't lost — the next person touching this repo
+(including a future version of whoever is reading this) should be able to
+tell *why* the scope is this narrow, not just that it is.
 
-## 🎯 الهدف من المشروع
+## 1. What was here before, and what an actual code audit found
 
-نظام وكلاء ذكيء متخصصين بدومينات مختلفة، مصمم لحل مشاكل حقيقية في السوق العربي والعالمي.
+The original repo had six "domain agents" (medical, legal, finance,
+education, e-commerce, customer service), each inheriting from a shared
+`BaseAgent`, backed by a custom RAG system and a custom "continuous
+learning system." A line-by-line audit of that code found the "advanced AI"
+framing didn't match the implementation:
 
-## 🌟 الميزات الثورية
+- `confidence` in the old `base_agent.py` was `0.5 + min(0.1*len(sources), 0.3) + (0.1 if len(response) > 100 else 0)` — an arithmetic function of source *count* and response *length*, unrelated to whether the content was correct.
+- RAG "re-ranking" was `relevance*0.7 + recency*0.2 + source_boost*0.1` — fixed weights, no cross-encoder.
+- The "continuous learning system" logged interactions to a `pickle` file and counted keyword occurrences into JSON. It never updated a model, never used embedding similarity, and had no feedback loop that changed future behavior in any measurable way.
+- The orchestrator's "multi-agent collaboration strategies" (parallel/sequential/hierarchical/consensus) resolved, in the routing case that actually mattered, to a plain `dict` lookup.
+- The legal agent had exactly one hardcoded knowledge entry. Three trivial unit tests existed in the whole repo. The API had no authentication and wide-open CORS.
 
-### 1. نظام RAG متقدم
-- استرجاع المعرفة من مصادر متعددة
-- بحث دلالي باستخدام vector embeddings
-- دعم كامل للغة العربية والإنجليزية
-- تركيز على نقاط الألم لكل مجال
+None of this made the old code *useless* — it was a reasonable scaffold —
+but none of it justified words like "revolutionary continuous learning" or
+"advanced RAG," and continuing to build on six shallow domains would have
+meant competing with mature, free, open-source frameworks (LangGraph,
+CrewAI, AutoGen, LlamaIndex, Haystack) using a weaker, custom version of
+what they already do.
 
-### 2. التعلم المستمر
-- تسجيل جميع التفاعلات
-- التعلم من التغذية الراجعة
-- تحسين الأداء تلقائياً
-- تكيف مع احتياجات المستخدمين
+## 2. Why one vertical, not six
 
-### 3. التعاون بين الوكلاء
-- استراتيجيات تعاون متعددة (Parallel, Sequential, Hierarchical, Consensus)
-- تنسيق ذكي بين الوكلاء
-- حل مشاكل معقدة تتطلب خبرات متعددة
+The AI companies that reached real valuations by 2026 did it by owning one
+regulated domain deeply, not by being broad:
 
-### 4. فهم اللغة الطبيعية
-- دعم متقدم للعربية
-- كشف تلقائي للغة
-- معالجة سياقية للاستفسارات
+| Company | Domain | 2026 valuation / traction |
+|---|---|---|
+| [Harvey](https://sacra.com/c/harvey/) | Legal | $11B (Mar 2026 round), $350M ARR, 1,500+ customers, 50% of Am Law 100 |
+| [Abridge](https://www.softx.ca/resources/healthcare-ai-compliance-guide-2026) | Healthcare (ambient clinical) | $5.3B+, 150+ health systems, $100M+ ARR |
+| Hippocratic AI | Healthcare | $3.5B after $404M raised |
 
-### 5. القدرة على التعافي الذاتي
-- استراتيجيات احتياطية تلقائية
-- معالجة الأخطاء بذكاء
-- ضمان استمرارية الخدمة
+Generic multi-agent frameworks, by contrast, are a crowded, mature, mostly
+free lane: LangGraph, CrewAI, and AutoGen (now folded into Microsoft's
+Agent Framework) all have large ecosystems and no obvious opening for a
+new, smaller, custom framework to win on breadth.
 
-</div>
+**Decision: pick one vertical and go deep.** Legal was chosen (see below)
+over medical (higher compliance/liability ceiling — FDA-adjacent
+considerations, higher stakes) and finance (crowded with incumbent banks
+and fintechs already running AI in MENA).
 
-## 📊 Architecture Overview
+## 3. Why Egypt, not Saudi Arabia or the UAE
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     User Interface                          │
-│              (API, CLI, Web Dashboard)                      │
-└─────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                  Agent Orchestrator                         │
-│         (Multi-Agent Coordination & Routing)                │
-└─────────────────────────────────────────────────────────────┘
-                           │
-        ┌──────────────────┼──────────────────┐
-        ▼                  ▼                  ▼
-┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-│   Medical    │  │    Legal     │  │   Finance    │
-│    Agent     │  │    Agent     │  │    Agent     │
-└──────────────┘  └──────────────┘  └──────────────┘
-        │                  │                  │
-        └──────────────────┼──────────────────┘
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Core Systems                             │
-├─────────────────────────────────────────────────────────────┤
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │  RAG System  │  │   Learning   │  │    Memory    │      │
-│  │   (Vector    │  │    System    │  │  Management  │      │
-│  │   Database)  │  │              │  │              │      │
-│  └──────────────┘  └──────────────┘  └──────────────┘      │
-└─────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│              LLM Providers (OpenAI, Anthropic)              │
-└─────────────────────────────────────────────────────────────┘
-```
+Market research (Sept 2026) found the Arabic legal-AI space is not empty —
+it's just unevenly distributed:
 
-## 🔧 Technology Stack
+- **Saudi Arabia**: already has multiple funded players — Adel (500K
+  downloads, 70K Saudi legal documents, SAR 149–199/month), Clauze.AI
+  (enterprise), Shwra, Laika, Malakah, and HAQQ (raised $3M, the largest
+  disclosed MENA-native legal-AI round as of early 2026).
+- **UAE**: Lexzur (practice management + Arabic contract tooling), Qanooni
+  ($2M pre-seed), Clara (company formation automation).
+- **Egypt**: comparatively undeveloped — the only entrants found were
+  Elmetr (a lawyer marketplace, not an AI research/drafting tool) and
+  Waseya (a narrow inheritance/will tool). No Egyptian competitor doing
+  AI-assisted contract/rights explanation for consumers or SMEs was found.
 
-### Core Framework
-- **Python 3.10+**: Modern Python features
-- **LangChain**: Agent framework and LLM integration
-- **FastAPI**: High-performance API
-- **Pydantic**: Data validation
+**Decision: target Egypt**, and target **individuals and small businesses**
+who need to understand a contract or know their rights in plain language —
+not the BigLaw case-research segment Harvey, Clauze.AI, and Adel already
+serve. This is a genuinely different buyer and a genuinely different
+product shape (a "know your rights" explainer, not a research copilot).
 
-### Vector Database & RAG
-- **ChromaDB**: Vector storage
-- **Sentence Transformers**: Multilingual embeddings
-- **FAISS**: Alternative vector search
+## 4. The hallucination problem, and why it drove the architecture
 
-### NLP & Language Processing
-- **spaCy**: NLP tasks
-- **Transformers**: State-of-the-art models
-- **CAMeL Tools**: Arabic language processing
+This is the risk that most directly shaped the technical rebuild:
 
-### Infrastructure
-- **Redis**: Caching and state management
-- **Docker**: Containerization
-- **Prometheus**: Monitoring
-- **Sentry**: Error tracking
+- Stanford/Yale research found even **specialized legal RAG tools**
+  hallucinate citations **17–34% of the time** — retrieval grounding alone
+  does not solve this, because a model can retrieve the right source and
+  still misstate what it says.
+- In 2026, U.S. courts issued six-figure sanctions against lawyers who
+  filed AI-fabricated citations — a $110,000 combined fine in one Oregon
+  case, $15,000+ punitive damages plus full appellate fees in a Sixth
+  Circuit case, plus bar referrals in every state where the sanctioned
+  lawyers were licensed.
+- A public tracker (Damien Charlotin's database) recorded roughly 1,490
+  court decisions worldwide where a party relied on AI-hallucinated legal
+  material, as of mid-2026.
 
-## 📁 Project Structure
+**This is why `src/verification/citation_verifier.py` exists as a hard
+gate, not a nice-to-have**: every factual sentence in a draft answer must
+cite a specific retrieved chunk by number, and an LLM-as-judge checks each
+cited (claim, source) pair for entailment. Claims that fail, or have no
+citation at all, cause the graph to retry the draft (bounded, ≤2 attempts)
+or fall back to an explicit "cannot answer confidently, consult a lawyer"
+handoff — never a silently-emitted unverified claim.
 
-```
-standalone-agents/
-├── src/
-│   ├── core/                    # Core framework
-│   │   ├── base_agent.py       # Base agent class
-│   │   ├── rag_system.py       # RAG implementation
-│   │   ├── learning_system.py  # Continuous learning
-│   │   └── orchestrator.py     # Multi-agent coordination
-│   ├── agents/                  # Domain-specific agents
-│   │   ├── medical/
-│   │   ├── legal/
-│   │   ├── finance/
-│   │   ├── education/
-│   │   ├── ecommerce/
-│   │   └── customer_service/
-│   ├── knowledge/              # Knowledge bases
-│   │   ├── vectors/           # Vector embeddings
-│   │   ├── documents/         # Source documents
-│   │   ├── pain_points/       # Domain pain points
-│   │   └── learning/          # Learning data
-│   ├── utils/                  # Utilities
-│   └── api/                    # API implementation
-├── tests/                      # Test suite
-├── examples/                   # Usage examples
-├── config/                     # Configuration
-├── docs/                       # Documentation
-└── docker/                     # Docker configs
-```
+Even so, this pipeline has not eliminated the risk, only architected
+against the parts of it that are architecturally addressable. The seed
+knowledge base itself was compiled by an AI research agent from secondary
+sources, not the primary Official Gazette text, and is explicitly marked
+`verified_by_lawyer: false` pending human review — see
+[`docs/eval/citation_audit.md`](docs/eval/citation_audit.md). One entry
+(the notice-period rule) has a documented conflict in the article number
+across the secondary sources consulted; this is left visible in the data
+and in the generated citation label rather than resolved by guessing.
 
-## 🎯 Domain Agents Overview
+## 5. What "rebuilding on proven tools" means concretely
 
-### 1. Medical Agent 🏥
-**Pain Points Addressed:**
-- Difficult access to reliable medical information
-- Language barriers in healthcare
-- Understanding medical terminology
-- Medication information needs
+| Layer | Old | New |
+|---|---|---|
+| Orchestration | `src/core/orchestrator.py`, dict-lookup "routing" | `src/graph/legal_graph.py`, a LangGraph `StateGraph` with real conditional edges and bounded retries |
+| Retrieval | `src/core/rag_system.py`, ChromaDB + heuristic rerank | `src/rag/legal_index.py`, LlamaIndex + `BAAI/bge-reranker-v2-m3` (real multilingual cross-encoder) |
+| Verification | `_calculate_confidence()` heuristic | `src/verification/citation_verifier.py`, per-claim LLM-as-judge entailment check against retrieved source text |
+| Feedback | `src/core/learning_system.py`, pickle + keyword counts | `src/feedback/curation_pipeline.py`, SQLite human-review queue; only human-approved content is ever marked `verified_by_lawyer=True` |
+| Evaluation | none | `tests/eval/golden_qa.jsonl` + `tests/eval/run_eval.py` (retrieval-recall checks with no API key required, plus RAGAS faithfulness scoring when one is available) |
 
-**Capabilities:**
-- Symptom analysis
-- Medication information
-- Disease information
-- Preventive care guidance
-- Mental health support
+## 6. What's still a gap (stated plainly, not buried)
 
-### 2. Legal Agent ⚖️
-**Pain Points Addressed:**
-- High cost of legal consultation
-- Complexity of legal language
-- Understanding rights and responsibilities
-- Contract comprehension
-
-**Capabilities:**
-- Contract review
-- Legal consultation
-- Rights information
-- Labor law guidance
-- Business law support
-
-### 3. Finance Agent 💰
-**Pain Points Addressed:**
-- Lack of financial literacy
-- Budget management difficulty
-- Investment uncertainty
-- Debt management stress
-
-**Capabilities:**
-- Budget planning
-- Investment analysis
-- Saving strategies
-- Debt management
-- Retirement planning
-
-### 4. Education Agent 🎓
-**Pain Points Addressed:**
-- Overwhelming educational options
-- Ineffective study methods
-- Career path confusion
-- Skill gap identification
-
-**Capabilities:**
-- Personalized learning paths
-- Study techniques
-- Course recommendations
-- Career guidance
-- Skill development
-
-### 5. E-commerce Agent 🛒
-**Pain Points Addressed:**
-- Product overwhelm
-- Price uncertainty
-- Review confusion
-- Purchase decision difficulty
-
-**Capabilities:**
-- Product recommendations
-- Price comparison
-- Review analysis
-- Deal finding
-- Shopping assistance
-
-### 6. Customer Service Agent 💬
-**Pain Points Addressed:**
-- Long wait times
-- Ineffective support
-- Language barriers
-- Complex issue resolution
-
-**Capabilities:**
-- Issue resolution
-- Product support
-- Complaint handling
-- FAQ assistance
-- Empathetic responses
-
-## 🔬 Revolutionary Features Detail
-
-### RAG System
-- **Multi-source aggregation**: Combines knowledge from various sources
-- **Semantic search**: Vector-based similarity search
-- **Re-ranking**: Improves relevance of retrieved information
-- **Context-aware**: Considers query context for better results
-- **Pain-point focused**: Prioritizes common user problems
-
-### Learning System
-- **Interaction recording**: Tracks all user interactions
-- **Pattern recognition**: Identifies common query patterns
-- **Feedback integration**: Learns from user ratings and corrections
-- **Performance tracking**: Monitors improvement over time
-- **Self-optimization**: Automatically improves responses
-
-### Multi-Agent Collaboration
-- **Parallel execution**: Multiple agents work simultaneously
-- **Sequential processing**: Agents build on each other's output
-- **Hierarchical coordination**: Lead agent coordinates others
-- **Consensus building**: Agents reach agreement on best answer
-- **Specialized delegation**: Each agent handles specific aspects
-
-## 🚀 Performance Targets
-
-- **Response Time**: < 2 seconds average
-- **Accuracy**: > 95% for domain-specific queries
-- **Availability**: 99.9% uptime
-- **Scalability**: 1000+ concurrent users
-- **Languages**: Full support for Arabic & English
-
-## 🔒 Security & Privacy
-
-- **Data encryption**: End-to-end encryption
-- **Access control**: Role-based permissions
-- **Audit logging**: Complete activity tracking
-- **GDPR compliance**: Privacy by design
-- **API authentication**: Secure access
-
-## 📈 Future Roadmap
-
-### Phase 1 (Current)
-- ✅ Core framework
-- ✅ 6 domain agents
-- ✅ RAG system
-- ✅ Continuous learning
-- ✅ Multi-agent collaboration
-
-### Phase 2 (Next 3 months)
-- [ ] Voice interaction
-- [ ] Mobile SDK
-- [ ] Real-time streaming
-- [ ] Advanced analytics
-- [ ] More domain agents (10+)
-
-### Phase 3 (6 months)
-- [ ] Multi-modal support (images, audio, video)
-- [ ] Custom agent builder
-- [ ] Marketplace for domain knowledge
-- [ ] Enterprise features
-- [ ] On-premise deployment
-
-## 🌍 Target Markets
-
-### Primary Markets
-1. **Middle East & North Africa**: Arabic language support
-2. **Global English speakers**: Universal access
-
-### Use Cases
-- **Healthcare**: Medical information access
-- **Legal**: Legal consultation and documentation
-- **Finance**: Financial planning and advice
-- **Education**: Learning and skill development
-- **E-commerce**: Shopping assistance
-- **Business**: Customer service automation
-
-## 📊 Success Metrics
-
-- User satisfaction > 4.5/5
-- Query resolution rate > 90%
-- Response accuracy > 95%
-- User retention > 80%
-- API uptime > 99.9%
-
----
-
-<div dir="rtl" align="center">
-
-### مشروع ثوري في عالم الوكلاء الذكيين
-
-**نبني المستقبل... الآن**
-
-</div>
+- No rate limiting on the public API.
+- No Langfuse tracing wired in yet (it's in `requirements.txt` but not yet
+  called from the graph nodes) — tracing every node's cost/latency/verdict
+  is the natural next step once this runs against real traffic.
+- The knowledge base covers seven labor-law topics. It does not cover
+  rental/lease or consumer contracts yet, despite those being in the
+  declared in-scope topic list in `config/config.example.yaml` — scope was
+  declared ahead of content on purpose (see `docs/eval/citation_audit.md`
+  gate: content should not outrun verification).
+- No lawyer has reviewed the seed knowledge base yet. This is the single
+  most important open item before any real user sees this agent's answers.

@@ -1,279 +1,182 @@
-# 🤖 Standalone Domain Agents - نظام الوكلاء المتخصصين
+# 🏛️ Egyptian Legal-Literacy Agent — وكيل محو الأمية القانونية المصري
 
 <div dir="rtl">
 
-## 🌟 نظرة عامة
+## نظرة عامة
 
-نظام متقدم للوكلاء الذكيء المتخصصين بدومينات مختلفة مع قدرات RAG قوية وتعلم مستمر. يغطي احتياجات السوق الحقيقية مع فهم عميق للغة الطبيعية (عربي وإنجليزي).
+وكيل عربي واحد، متخصص، للإجابة على أسئلة الأفراد والشركات الصغيرة في مصر حول
+**عقود العمل وحقوق العمال**، بلغة بسيطة، مع **تحقق إلزامي من كل استشهاد قانوني**
+قبل عرض الإجابة.
 
 </div>
 
-## 🚀 Revolutionary Features / الميزات الثورية
+## Why this project pivoted
 
-### Core Innovations / الابتكارات الأساسية
+This repository used to contain six shallow generalist "domain agents"
+(medical, legal, finance, education, e-commerce, customer service). It has
+been rebuilt around a single, deep, real vertical instead. Two things drove
+that:
 
-1. **🧠 Multi-Domain Intelligence**
-   - Specialized agents for different industries
-   - Cross-domain knowledge transfer
-   - Domain-specific RAG systems
+1. **Market pattern.** The vertical-AI companies that actually won —
+   [Harvey](https://sacra.com/c/harvey/) (legal, $11B valuation, $350M ARR),
+   [Abridge](https://www.softx.ca/resources/healthcare-ai-compliance-guide-2026)
+   (healthcare, $5.3B+) — did it by going deep in **one** regulated domain
+   with real compliance infrastructure, not by being a broad generalist
+   framework. Generic multi-agent frameworks (LangGraph, CrewAI, AutoGen)
+   are mature and free; a hand-rolled competitor to them has no edge.
+2. **An honest audit of this repo's own code** found that its "advanced AI"
+   features were arithmetic dressed up as intelligence: `confidence` was
+   `0.5 + 0.1*len(sources)`, "re-ranking" was a fixed weighted sum, and
+   "continuous learning" was pickling interaction logs and counting
+   keywords. None of it was wrong to build as a learning exercise, but none
+   of it should be marketed as what it isn't.
 
-2. **📚 Advanced RAG System**
-   - Vector-based knowledge retrieval
-   - Multi-source knowledge aggregation
-   - Context-aware information extraction
-   - Pain-point focused knowledge base
+So: one domain (Egyptian labor/contract literacy), one market (Egypt, where
+legal AI is far less crowded than Saudi Arabia's — see
+[PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) for the competitive research),
+and a real architecture: **LangGraph** for orchestration, **LlamaIndex** +
+a real cross-encoder reranker for retrieval, and a **citation verifier**
+that can refuse to answer rather than emit an ungrounded claim.
 
-3. **🔄 Continuous Learning**
-   - Real-time feedback integration
-   - Adaptive behavior modification
-   - Experience-based optimization
-   - Self-improvement mechanisms
+## ⚠️ Scope and known limitations — read before using this for anything real
 
-4. **🌐 Natural Language Understanding**
-   - Multi-language support (Arabic & English)
-   - Context-aware interpretation
-   - Intent recognition
-   - Sentiment analysis
+- **Not legal advice.** This agent explains publicly available legal
+  information in plain language. It is not a lawyer and does not replace
+  one.
+- **Explicitly out of scope**: criminal law, litigation strategy, court
+  filings, tax law. Queries about these are routed to human handoff, not
+  answered.
+- **The seed knowledge base is NOT yet lawyer-verified.** Every entry in
+  `src/knowledge/legal_eg/labor_law_2025_seed.json` was compiled by an AI
+  research agent from secondary sources (law-firm client alerts about
+  Egypt's Labor Law No. 14 of 2025), not from the primary Official Gazette
+  text, and is explicitly flagged `verified_by_lawyer: false`. One entry
+  (notice period) has a **known conflict** in the article number cited
+  across secondary sources. See
+  [`docs/eval/citation_audit.md`](docs/eval/citation_audit.md) — this is
+  the non-negotiable manual sign-off step before real deployment.
+- **Legal RAG hallucinates.** Even specialized legal RAG tools hallucinate
+  citations 17–34% of the time (Stanford/Yale research), and 2026 saw
+  six-figure U.S. court sanctions against lawyers who filed AI-fabricated
+  citations. The citation-verification gate in this project exists
+  specifically because retrieval alone does not solve this.
+- **No rate limiting yet** on the API. Admin endpoints (feedback approval)
+  require `LEGAL_AGENT_ADMIN_KEY`; the `/query` endpoint does not yet have
+  abuse protection — do not expose it publicly without adding some.
 
-5. **🤝 Multi-Agent Collaboration**
-   - Agent-to-agent communication
-   - Task delegation and orchestration
-   - Collective problem-solving
-   - Knowledge sharing
-
-6. **🔮 Self-Healing & Resilience**
-   - Automatic error recovery
-   - Fallback strategies
-   - Performance monitoring
-   - Adaptive resource management
-
-## 🎯 Domain Coverage / التغطية المجالية
-
-### Available Specialized Agents
-
-1. **🏥 Medical Agent** - Healthcare & Medical Advisory
-2. **⚖️ Legal Agent** - Legal Consultation & Documentation
-3. **💰 Finance Agent** - Financial Analysis & Advisory
-4. **🎓 Education Agent** - Learning & Training Support
-5. **🛒 E-Commerce Agent** - Shopping & Product Advisory
-6. **💬 Customer Service Agent** - Support & Assistance
-7. **🏗️ Technical Agent** - Software & Technical Support
-8. **📊 Data Analysis Agent** - Analytics & Insights
-
-## 🏗️ Architecture / المعمارية
+## 🏗️ Architecture
 
 ```
-standalone-agents/
-├── src/
-│   ├── core/                    # Core framework
-│   │   ├── base_agent.py       # Base agent class
-│   │   ├── rag_system.py       # RAG implementation
-│   │   ├── learning_system.py  # Continuous learning
-│   │   └── orchestrator.py     # Multi-agent orchestration
-│   ├── agents/                  # Domain-specific agents
-│   │   ├── medical/
-│   │   ├── legal/
-│   │   ├── finance/
-│   │   ├── education/
-│   │   ├── ecommerce/
-│   │   ├── customer_service/
-│   │   ├── technical/
-│   │   └── data_analysis/
-│   ├── knowledge/               # Knowledge bases
-│   │   ├── vectors/            # Vector embeddings
-│   │   ├── documents/          # Source documents
-│   │   └── pain_points/        # Domain pain points
-│   ├── utils/                   # Utilities
-│   └── api/                     # API interface
-├── tests/                       # Test suite
-├── config/                      # Configuration
-├── docs/                        # Documentation
-└── examples/                    # Usage examples
+User query
+    │
+    ▼
+┌─────────────────┐   out of scope    ┌──────────┐
+│ classify_intent  │──────────────────▶│ handoff  │──▶ END
+└─────────────────┘                    └──────────┘
+    │ in scope                              ▲
+    ▼                                       │ no sources /
+┌─────────────────┐   no chunks found       │ retries exhausted
+│    retrieve      │────────────────────────┤
+│ (LlamaIndex +    │                        │
+│  cross-encoder)  │                        │
+└─────────────────┘                        │
+    │                                       │
+    ▼                                       │
+┌─────────────────┐                        │
+│  draft_answer    │◀──── retry (≤2) ───┐   │
+│  (cites [n])     │                    │   │
+└─────────────────┘                    │   │
+    │                                   │   │
+    ▼                                   │   │
+┌─────────────────┐  unsupported claim  │   │
+│ verify_citations │────────────────────┘   │
+│ (LLM-as-judge    │                        │
+│  per claim)      │────────────────────────┘
+└─────────────────┘  all supported
+    │
+    ▼
+┌─────────────────┐
+│ add_disclaimer   │──▶ END
+└─────────────────┘
 ```
 
-## 🛠️ Technology Stack
-
-- **Python 3.10+**
-- **LangChain** - Agent framework
-- **ChromaDB** - Vector database
-- **OpenAI/Anthropic** - LLM providers
-- **FastAPI** - API framework
-- **Sentence Transformers** - Embeddings
-- **spaCy** - NLP processing
-- **Redis** - Caching & state management
+| Old (deleted)                     | New                                          | Why |
+|---|---|---|
+| `src/core/orchestrator.py` (dict lookup) | `src/graph/legal_graph.py` (LangGraph `StateGraph`) | Real branching/retry logic, not a lookup table |
+| `src/core/rag_system.py` (heuristic rerank) | `src/rag/legal_index.py` (LlamaIndex + `BAAI/bge-reranker-v2-m3`) | Real cross-encoder, mandatory citation metadata |
+| `src/core/learning_system.py` (pickle + keyword counts) | `src/feedback/curation_pipeline.py` (SQLite human review queue) | Honestly scoped — no "learning" claim |
+| `_calculate_confidence()` heuristic | `src/verification/citation_verifier.py` (per-claim entailment check) | Checks the draft against the actual source, not against source *count* |
 
 ## 📦 Installation
 
 ```bash
-# Clone repository
 git clone https://github.com/emanalshazly/standalone-agents.git
 cd standalone-agents
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
+python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-
-# Setup configuration
-cp config/config.example.yaml config/config.yaml
-# Edit config.yaml with your API keys
+cp .env.example .env   # add your OPENAI_API_KEY or ANTHROPIC_API_KEY
 ```
 
-## 🚀 Quick Start
+## 🚀 Usage
 
 ```python
-from src.core.orchestrator import AgentOrchestrator
-from src.agents.medical.medical_agent import MedicalAgent
+from src.agents.legal.legal_agent import EgyptianLegalAgent
 
-# Initialize orchestrator
-orchestrator = AgentOrchestrator()
+agent = EgyptianLegalAgent()
+answer = agent.query("هل يجوز لصاحب العمل تجديد فترة الاختبار؟")
 
-# Create medical agent
-medical_agent = MedicalAgent()
-
-# Query in Arabic
-response = medical_agent.query(
-    "ما هي أعراض مرض السكري؟",
-    language="ar"
-)
-
-print(response)
+print(answer.answer)
+print("handoff_required:", answer.handoff_required)
+print("lawyer_review_pending:", answer.lawyer_review_pending)  # currently always True — see Scope section above
+print("citations:", answer.citations)
 ```
 
-## 📖 Documentation
+Run the API:
 
-<div dir="rtl">
-
-### الوثائق الكاملة
-
-- [دليل البداية السريعة](docs/ar/quick-start.md)
-- [معمارية النظام](docs/ar/architecture.md)
-- [إنشاء وكيل جديد](docs/ar/creating-agents.md)
-- [نظام RAG](docs/ar/rag-system.md)
-- [التعلم المستمر](docs/ar/continuous-learning.md)
-- [API Reference](docs/en/api-reference.md)
-
-</div>
-
-## 🎯 Use Cases / حالات الاستخدام
-
-### Medical Domain
-```python
-# Symptom analysis
-medical_agent.analyze_symptoms("أشعر بصداع مستمر ودوخة")
-
-# Medication information
-medical_agent.get_medication_info("Aspirin")
-```
-
-### Legal Domain
-```python
-# Contract review
-legal_agent.review_contract(document_path)
-
-# Legal consultation
-legal_agent.consult("أريد معرفة حقوقي في عقد العمل")
-```
-
-### Finance Domain
-```python
-# Investment analysis
-finance_agent.analyze_investment("AAPL")
-
-# Budget planning
-finance_agent.create_budget_plan(income=5000, expenses=data)
-```
-
-## 🔬 Advanced Features
-
-### 1. Custom Knowledge Integration
-```python
-# Add domain-specific knowledge
-agent.add_knowledge(
-    source="document.pdf",
-    category="pain_points",
-    metadata={"priority": "high"}
-)
-```
-
-### 2. Multi-Agent Collaboration
-```python
-# Complex query requiring multiple domains
-result = orchestrator.collaborative_query(
-    query="تحليل مالي لشركة طبية",
-    required_agents=["finance", "medical"]
-)
-```
-
-### 3. Continuous Learning
-```python
-# Provide feedback for learning
-agent.learn_from_feedback(
-    query="السؤال",
-    response="الإجابة",
-    feedback={"rating": 5, "corrections": "..."}
-)
+```bash
+uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
+# docs at http://localhost:8000/docs
 ```
 
 ## 🧪 Testing
 
 ```bash
-# Run all tests
-pytest tests/
+# Pure-logic unit tests (no API key, no network needed)
+pytest tests/ --ignore=tests/eval
 
-# Run specific domain tests
-pytest tests/agents/medical/
+# Retrieval-only eval (downloads the embedding model; still no LLM/API key)
+python tests/eval/run_eval.py --mode retrieval
 
-# Run with coverage
-pytest --cov=src tests/
+# Full eval incl. RAGAS faithfulness scoring (needs OPENAI_API_KEY)
+python tests/eval/run_eval.py --mode full
 ```
 
-## 🤝 Contributing
+A passing eval run is **necessary but not sufficient**. See
+[`docs/eval/citation_audit.md`](docs/eval/citation_audit.md) for the manual
+lawyer sign-off gate.
 
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+## 🤝 Feedback / correction workflow
 
-## 📊 Performance Metrics
+```
+POST /feedback/submit                     -> anyone can propose a correction
+GET  /feedback/review-queue   (admin)     -> list pending corrections
+POST /feedback/{id}/approve   (admin)     -> named human approves, embeds
+                                              as verified_by_lawyer=true
+POST /feedback/{id}/reject    (admin)     -> named human rejects
+```
 
-- **Response Time**: < 2s average
-- **Accuracy**: > 95% for domain-specific queries
-- **Multilingual Support**: Arabic & English
-- **Scalability**: Handles 1000+ concurrent requests
-
-## 🔐 Security & Privacy
-
-- End-to-end encryption
-- Data anonymization
-- GDPR compliant
-- No data retention without consent
+Admin routes require the `X-API-Key` header matching `LEGAL_AGENT_ADMIN_KEY`.
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) file
+MIT License — see [LICENSE](LICENSE).
 
-## 🌟 Roadmap
+## Further reading
 
-- [ ] Support for 10+ domains
-- [ ] Voice interaction
-- [ ] Mobile SDK
-- [ ] Real-time streaming responses
-- [ ] Integration with major platforms
-- [ ] Advanced analytics dashboard
-- [ ] Multi-modal support (images, audio)
-
-## 📞 Contact & Support
-
-- **Email**: support@standalone-agents.dev
-- **Discord**: [Join our community](https://discord.gg/standalone-agents)
-- **Issues**: [GitHub Issues](https://github.com/emanalshazly/standalone-agents/issues)
-
----
-
-<div dir="rtl" align="center">
-
-### صنع بـ ❤️ للمطورين العرب والعالم
-
-**نظام وكلاء ذكي متقدم يحل مشاكل حقيقية**
-
-</div>
+- [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) — the competitive research and
+  strategic reasoning behind this pivot (Harvey/Abridge/Hippocratic AI
+  benchmarks, Egypt vs. Saudi/UAE legal-AI market analysis, legal-AI
+  hallucination sanctions).
+- [docs/eval/citation_audit.md](docs/eval/citation_audit.md) — the manual
+  verification log every seed knowledge-base entry needs before production
+  use.

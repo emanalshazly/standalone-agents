@@ -1,320 +1,195 @@
 """
-FastAPI Application - تطبيق الAPI
-RESTful API for standalone agents
+FastAPI Application - Egyptian Legal-Literacy Agent API
+
+Rewritten for the single-domain pivot. Two honesty fixes versus the old
+multi-agent API (src/api/main.py, pre-pivot):
+
+1. The old API had zero authentication and `allow_origins=["*"]` with
+   `allow_credentials=True` (an open door, not a hardened default). Here,
+   admin endpoints that can promote content into the legal knowledge base
+   (feedback approve/reject) require an API key. CORS defaults to
+   localhost only and is configurable via CORS_ORIGINS.
+2. There is no `/agent/{name}/learning-insights` endpoint anymore — the
+   old "learning system" it exposed was pickle-logged keyword counts, not
+   learning. The equivalent honest endpoint is `/feedback/review-queue`,
+   a human review queue (see src/feedback/curation_pipeline.py).
+
+Known gap, called out rather than hidden: rate limiting is not yet
+implemented (no Redis/slowapi wiring). Do not deploy this publicly without
+adding it — see PROJECT_OVERVIEW.md "Known gaps".
 """
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from __future__ import annotations
+
+import os
+from datetime import datetime, timezone
+
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
-from datetime import datetime
-import logging
 
-from src.core.orchestrator import AgentOrchestrator, CollaborationStrategy
-from src.core.base_agent import AgentContext
-from src.agents.medical.medical_agent import MedicalAgent
-from src.agents.legal.legal_agent import LegalAgent
-from src.agents.finance.finance_agent import FinanceAgent
-from src.agents.education.education_agent import EducationAgent
-from src.agents.ecommerce.ecommerce_agent import EcommerceAgent
-from src.agents.customer_service.customer_service_agent import CustomerServiceAgent
+from src.agents.legal.legal_agent import EgyptianLegalAgent
+from src.feedback.curation_pipeline import CurationPipeline
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Initialize FastAPI app
 app = FastAPI(
-    title="Standalone Domain Agents API",
-    description="Revolutionary multi-domain agent system with RAG and continuous learning",
-    version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc"
+    title="Egyptian Legal-Literacy Agent API",
+    description=(
+        "Citation-verified, Arabic-first legal Q&A for Egyptian individuals "
+        "and small businesses. Not legal advice; not a substitute for a "
+        "licensed lawyer."
+    ),
+    version="2.0.0",
 )
 
-# CORS middleware
+_cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=_cors_origins,
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
-# Initialize orchestrator and agents
-orchestrator = AgentOrchestrator(max_workers=5)
+_agent: EgyptianLegalAgent | None = None
+_curation: CurationPipeline | None = None
 
 
-# Request/Response Models
-class QueryRequest(BaseModel):
-    query: str = Field(..., description="User query")
-    language: str = Field(default="auto", description="Language: en, ar, or auto")
-    user_id: Optional[str] = Field(default="anonymous", description="User identifier")
-    session_id: Optional[str] = Field(default=None, description="Session identifier")
-    use_rag: bool = Field(default=True, description="Use RAG for knowledge retrieval")
-
-
-class FeedbackRequest(BaseModel):
-    query: str
-    response: str
-    rating: float = Field(..., ge=0.0, le=5.0)
-    corrections: Optional[str] = None
-    feedback_text: Optional[str] = None
-
-
-class CollaborativeQueryRequest(BaseModel):
-    query: str
-    language: str = "auto"
-    user_id: str = "anonymous"
-    required_agents: List[str]
-    strategy: str = "consensus"
-
-
-class AgentResponse(BaseModel):
-    content: str
-    confidence: float
-    sources: List[str]
-    suggestions: List[str]
-    metadata: Dict[str, Any]
-    timestamp: str
+def _verify_admin_key(x_api_key: str = Header(default="")) -> None:
+    expected = os.getenv("LEGAL_AGENT_ADMIN_KEY")
+    if not expected:
+        raise HTTPException(
+            status_code=503,
+            detail="Admin endpoints disabled: LEGAL_AGENT_ADMIN_KEY is not configured.",
+        )
+    if x_api_key != expected:
+        raise HTTPException(status_code=401, detail="Invalid or missing X-API-Key")
 
 
 @app.on_event("startup")
-async def startup_event():
-    """Initialize agents on startup"""
-    logger.info("Initializing agents...")
+async def startup_event() -> None:
+    global _agent, _curation
+    _agent = EgyptianLegalAgent()
+    _curation = CurationPipeline()
 
-    # Register all agents
-    agents_config = [
-        ("medical", MedicalAgent(), ["medical", "health", "healthcare"]),
-        ("legal", LegalAgent(), ["legal", "law", "rights"]),
-        ("finance", FinanceAgent(), ["finance", "money", "investment"]),
-        ("education", EducationAgent(), ["education", "learning", "training"]),
-        ("ecommerce", EcommerceAgent(), ["shopping", "products", "ecommerce"]),
-        ("customer_service", CustomerServiceAgent(), ["support", "service", "help"]),
-    ]
 
-    for name, agent, domains in agents_config:
-        orchestrator.register_agent(
-            agent_name=name,
-            agent=agent,
-            domains=domains
-        )
-        logger.info(f"Registered {name} agent")
+class QueryRequest(BaseModel):
+    query: str = Field(..., min_length=1, max_length=2000)
 
-    logger.info("All agents initialized successfully")
+
+class QueryResponse(BaseModel):
+    answer: str
+    language: str
+    handoff_required: bool
+    lawyer_review_pending: bool
+    citations: list[str]
+    timestamp: str
+
+
+class SubmitCorrectionRequest(BaseModel):
+    query: str
+    draft_answer: str
+    user_correction: str
+    language: str = "ar"
+
+
+class ApproveCorrectionRequest(BaseModel):
+    reviewer: str
+    law_name_ar: str
+    law_name_en: str
+    article_number: str
+    source_urls: list[str]
+
+
+class RejectCorrectionRequest(BaseModel):
+    reviewer: str
+    notes: str = ""
 
 
 @app.get("/")
 async def root():
-    """Root endpoint"""
     return {
-        "name": "Standalone Domain Agents API",
-        "version": "1.0.0",
+        "name": "Egyptian Legal-Literacy Agent",
+        "version": "2.0.0",
+        "scope": "Egyptian labor/contract literacy for individuals & small businesses",
+        "not_in_scope": ["criminal_law", "litigation_strategy", "court_filings", "tax_law"],
         "status": "running",
-        "agents": list(orchestrator.agents.keys())
     }
 
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
-    return {
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
-        "agents_count": len(orchestrator.agents)
-    }
+    return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
-@app.post("/query/{agent_name}", response_model=AgentResponse)
-async def query_agent(agent_name: str, request: QueryRequest):
-    """
-    Query a specific agent
+@app.post("/query", response_model=QueryResponse)
+async def query(request: QueryRequest):
+    if _agent is None:
+        raise HTTPException(status_code=503, detail="Agent not initialized yet")
 
-    - **agent_name**: medical, legal, finance, education, ecommerce, customer_service
-    - **query**: User's question
-    - **language**: en, ar, or auto (auto-detect)
-    """
-    if agent_name not in orchestrator.agents:
-        raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
-
-    try:
-        context = AgentContext(
-            user_id=request.user_id,
-            session_id=request.session_id or f"session_{datetime.now().timestamp()}",
-            language=request.language,
-            domain=agent_name
-        )
-
-        response = orchestrator.query(
-            user_query=request.query,
-            context=context,
-            preferred_agent=agent_name
-        )
-
-        return AgentResponse(
-            content=response.content,
-            confidence=response.confidence,
-            sources=response.sources,
-            suggestions=response.suggestions,
-            metadata=response.metadata,
-            timestamp=datetime.now().isoformat()
-        )
-
-    except Exception as e:
-        logger.error(f"Error processing query: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+    result = _agent.query(request.query)
+    return QueryResponse(
+        answer=result.answer,
+        language=result.language,
+        handoff_required=result.handoff_required,
+        lawyer_review_pending=result.lawyer_review_pending,
+        citations=result.citations,
+        timestamp=datetime.now(timezone.utc).isoformat(),
+    )
 
 
-@app.post("/collaborative-query")
-async def collaborative_query(request: CollaborativeQueryRequest):
-    """
-    Query multiple agents collaboratively
+@app.post("/feedback/submit")
+async def submit_feedback(request: SubmitCorrectionRequest):
+    """Anyone can propose a correction. Nothing happens with it until a
+    named human reviewer approves it via /feedback/{id}/approve."""
+    if _curation is None:
+        raise HTTPException(status_code=503, detail="Curation pipeline not initialized yet")
 
-    Strategies: parallel, sequential, hierarchical, consensus
-    """
-    try:
-        # Validate agents
-        for agent_name in request.required_agents:
-            if agent_name not in orchestrator.agents:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Agent '{agent_name}' not found"
-                )
-
-        # Parse strategy
-        strategy_map = {
-            "parallel": CollaborationStrategy.PARALLEL,
-            "sequential": CollaborationStrategy.SEQUENTIAL,
-            "hierarchical": CollaborationStrategy.HIERARCHICAL,
-            "consensus": CollaborationStrategy.CONSENSUS,
-        }
-
-        strategy = strategy_map.get(
-            request.strategy.lower(),
-            CollaborationStrategy.CONSENSUS
-        )
-
-        context = AgentContext(
-            user_id=request.user_id,
-            session_id=f"collab_{datetime.now().timestamp()}",
-            language=request.language
-        )
-
-        response = orchestrator.collaborative_query(
-            user_query=request.query,
-            context=context,
-            required_agents=request.required_agents,
-            strategy=strategy
-        )
-
-        return {
-            "content": response.primary_response,
-            "confidence": response.confidence,
-            "contributing_agents": response.contributing_agents,
-            "strategy": response.collaboration_strategy,
-            "metadata": response.metadata,
-            "timestamp": datetime.now().isoformat()
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in collaborative query: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+    review_id = _curation.submit_correction(
+        query=request.query,
+        draft_answer=request.draft_answer,
+        user_correction=request.user_correction,
+        language=request.language,
+    )
+    return {"status": "queued_for_review", "review_id": review_id}
 
 
-@app.post("/feedback/{agent_name}")
-async def submit_feedback(agent_name: str, request: FeedbackRequest):
-    """Submit feedback for an agent response"""
-    if agent_name not in orchestrator.agents:
-        raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
-
-    try:
-        agent = orchestrator.agents[agent_name]
-
-        feedback = {
-            "rating": request.rating,
-            "corrections": request.corrections,
-            "text": request.feedback_text
-        }
-
-        agent.learn_from_feedback(
-            query=request.query,
-            response=request.response,
-            feedback=feedback
-        )
-
-        return {
-            "status": "success",
-            "message": "Feedback recorded successfully",
-            "agent": agent_name
-        }
-
-    except Exception as e:
-        logger.error(f"Error recording feedback: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+@app.get("/feedback/review-queue", dependencies=[Depends(_verify_admin_key)])
+async def review_queue():
+    """Admin-only: list pending human-review items. Requires X-API-Key."""
+    if _curation is None:
+        raise HTTPException(status_code=503, detail="Curation pipeline not initialized yet")
+    return {"pending": [item.__dict__ for item in _curation.list_pending()]}
 
 
-@app.get("/agents")
-async def list_agents():
-    """List all available agents"""
-    return {
-        "agents": orchestrator.list_agents(),
-        "total": len(orchestrator.agents)
-    }
+@app.post("/feedback/{review_id}/approve", dependencies=[Depends(_verify_admin_key)])
+async def approve_feedback(review_id: int, request: ApproveCorrectionRequest):
+    """Admin-only: a named human approves a correction, which is then
+    embedded into the retrieval index as verified_by_lawyer=True."""
+    if _curation is None or _agent is None:
+        raise HTTPException(status_code=503, detail="Service not initialized yet")
+
+    _curation.approve(
+        review_id=review_id,
+        reviewer=request.reviewer,
+        law_name_ar=request.law_name_ar,
+        law_name_en=request.law_name_en,
+        article_number=request.article_number,
+        source_urls=request.source_urls,
+        legal_index=_agent.legal_index,
+    )
+    return {"status": "approved", "review_id": review_id, "reviewer": request.reviewer}
 
 
-@app.get("/agent/{agent_name}/metrics")
-async def get_agent_metrics(agent_name: str):
-    """Get performance metrics for an agent"""
-    if agent_name not in orchestrator.agents:
-        raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
+@app.post("/feedback/{review_id}/reject", dependencies=[Depends(_verify_admin_key)])
+async def reject_feedback(review_id: int, request: RejectCorrectionRequest):
+    if _curation is None:
+        raise HTTPException(status_code=503, detail="Curation pipeline not initialized yet")
 
-    agent = orchestrator.agents[agent_name]
-    return {
-        "agent": agent_name,
-        "metrics": agent.get_metrics(),
-        "timestamp": datetime.now().isoformat()
-    }
-
-
-@app.get("/agent/{agent_name}/learning-insights")
-async def get_learning_insights(agent_name: str):
-    """Get learning insights for an agent"""
-    if agent_name not in orchestrator.agents:
-        raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
-
-    agent = orchestrator.agents[agent_name]
-
-    if not agent.learning_system:
-        return {"message": "Learning system not enabled for this agent"}
-
-    insights = agent.learning_system.get_learning_insights()
-
-    return {
-        "agent": agent_name,
-        "insights": insights,
-        "timestamp": datetime.now().isoformat()
-    }
-
-
-@app.get("/stats")
-async def get_orchestrator_stats():
-    """Get orchestrator statistics"""
-    return {
-        "stats": orchestrator.get_stats(),
-        "timestamp": datetime.now().isoformat()
-    }
+    _curation.reject(review_id=review_id, reviewer=request.reviewer, notes=request.notes)
+    return {"status": "rejected", "review_id": review_id}
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        log_level="info"
-    )
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
