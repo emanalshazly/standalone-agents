@@ -24,6 +24,7 @@ MANIFEST
 
 # Virtual Environment
 venv/
+.venv/
 env/
 ENV/
 env.bak/
@@ -53,10 +54,8 @@ logs/
 # Knowledge Base & Data
 src/knowledge/vectors/*
 !src/knowledge/vectors/.gitkeep
-src/knowledge/learning/*
-!src/knowledge/learning/.gitkeep
-src/knowledge/documents/*
-!src/knowledge/documents/.gitkeep
+src/knowledge/feedback/*.db
+!src/knowledge/feedback/.gitkeep
 
 # Testing
 .pytest_cache/

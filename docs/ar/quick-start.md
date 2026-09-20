@@ -1,40 +1,25 @@
 # دليل البداية السريعة
 
+<div dir="rtl">
+
 ## المتطلبات الأساسية
 
 - Python 3.10 أو أحدث
-- pip (مدير الحزم)
 - مفتاح API من OpenAI أو Anthropic
+- اتصال بالإنترنت (لتحميل نموذج التضمين متعدد اللغات ونموذج إعادة الترتيب عند أول تشغيل)
 
 ## التثبيت
-
-### 1. استنساخ المشروع
 
 ```bash
 git clone https://github.com/emanalshazly/standalone-agents.git
 cd standalone-agents
-```
-
-### 2. إنشاء بيئة افتراضية
-
-```bash
 python -m venv venv
 source venv/bin/activate  # على Windows: venv\Scripts\activate
-```
-
-### 3. تثبيت الحزم المطلوبة
-
-```bash
 pip install -r requirements.txt
-```
-
-### 4. إعداد المتغيرات البيئية
-
-```bash
 cp .env.example .env
 ```
 
-افتح ملف `.env` وأضف مفتاح API الخاص بك:
+افتح `.env` وأضف مفتاح API الخاص بك:
 
 ```env
 OPENAI_API_KEY=your-api-key-here
@@ -42,200 +27,81 @@ OPENAI_API_KEY=your-api-key-here
 
 ## الاستخدام الأساسي
 
-### مثال بسيط - الوكيل الطبي
+هذا المشروع أصبح وكيلاً واحداً متخصصاً (وليس ستة وكلاء عامّين كما كان سابقاً) —
+راجع [PROJECT_OVERVIEW.md](../../PROJECT_OVERVIEW.md) لفهم سبب هذا التحول.
 
 ```python
-from src.agents.medical.medical_agent import MedicalAgent
-from src.core.base_agent import AgentContext
+from src.agents.legal.legal_agent import EgyptianLegalAgent
 
-# إنشاء الوكيل الطبي
-agent = MedicalAgent()
+agent = EgyptianLegalAgent()
 
-# إنشاء السياق
-context = AgentContext(
-    user_id="user123",
-    session_id="session1",
-    language="ar",
-    domain="medical"
-)
+answer = agent.query("هل يجوز لصاحب العمل تجديد فترة الاختبار؟")
 
-# طرح سؤال
-response = agent.query(
-    "ما هي أعراض مرض السكري؟",
-    context=context
-)
-
-# عرض الإجابة
-print(response.content)
-print(f"الثقة: {response.confidence}")
+print(answer.answer)
+print("يحتاج تحويل لمحامٍ:", answer.handoff_required)
+print("المصادر لم تُراجَع من محامٍ بعد:", answer.lawyer_review_pending)
+print("الاستشهادات:", answer.citations)
 ```
 
-### استخدام الوكيل المالي
+⚠️ لاحظ أن `lawyer_review_pending` سيكون `True` دائماً حالياً — قاعدة المعرفة
+الحالية مُجمَّعة من مصادر ثانوية ولم يراجعها محامٍ مصري مرخّص بعد. راجع
+[docs/eval/citation_audit.md](../eval/citation_audit.md).
+
+### أسئلة خارج النطاق تُحوَّل تلقائياً لمحامٍ بشري
 
 ```python
-from src.agents.finance.finance_agent import FinanceAgent
-
-agent = FinanceAgent()
-
-context = AgentContext(
-    user_id="user456",
-    session_id="session2",
-    language="ar",
-    domain="finance"
-)
-
-response = agent.query(
-    "كيف أبدأ في الادخار الشهري؟",
-    context=context
-)
-
-print(response.content)
+answer = agent.query("أنا متهم في قضية جنائية، كيف أدافع عن نفسي؟")
+print(answer.handoff_required)  # True — القانون الجنائي خارج نطاق هذا الوكيل عمداً
 ```
 
-### استخدام متعدد الوكلاء
-
-```python
-from src.core.orchestrator import AgentOrchestrator, CollaborationStrategy
-from src.agents.medical.medical_agent import MedicalAgent
-from src.agents.finance.finance_agent import FinanceAgent
-
-# إنشاء المنسق
-orchestrator = AgentOrchestrator()
-
-# تسجيل الوكلاء
-medical = MedicalAgent()
-finance = FinanceAgent()
-
-orchestrator.register_agent("medical", medical, domains=["medical"])
-orchestrator.register_agent("finance", finance, domains=["finance"])
-
-# استعلام تعاوني
-context = AgentContext(
-    user_id="user789",
-    session_id="collab1",
-    language="ar"
-)
-
-response = orchestrator.collaborative_query(
-    user_query="كيف أخطط مالياً لتكاليف العلاج الطبي؟",
-    context=context,
-    required_agents=["medical", "finance"],
-    strategy=CollaborationStrategy.CONSENSUS
-)
-
-print(response.primary_response)
-```
-
-## تشغيل API
-
-### بدء الخادم
-
-```bash
-cd src/api
-python main.py
-```
-
-أو باستخدام uvicorn:
+## تشغيل الـ API
 
 ```bash
 uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### الوصول إلى الوثائق التفاعلية
+الوثائق التفاعلية على: http://localhost:8000/docs
 
-افتح المتصفح وانتقل إلى:
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
-
-### أمثلة API
-
-#### استعلام وكيل محدد
+### مثال استعلام عبر curl
 
 ```bash
-curl -X POST "http://localhost:8000/query/medical" \
+curl -X POST "http://localhost:8000/query" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "كم عدد أيام الإجازة السنوية المستحقة لي في السنة الثانية؟"}'
+```
+
+### اقتراح تصحيح لمعلومة قانونية
+
+```bash
+curl -X POST "http://localhost:8000/feedback/submit" \
   -H "Content-Type: application/json" \
   -d '{
-    "query": "ما هي أعراض الإنفلونزا؟",
-    "language": "ar",
-    "user_id": "user123"
+    "query": "...",
+    "draft_answer": "...",
+    "user_correction": "النص الصحيح مع رقم المادة والمصدر الرسمي"
   }'
 ```
 
-#### استعلام تعاوني
+لن يُستخدم هذا التصحيح في أي إجابة مستقبلية حتى يعتمده مراجع بشري مُسمّى عبر
+`/feedback/{id}/approve` (يتطلب `X-API-Key`).
+
+## الاختبارات
 
 ```bash
-curl -X POST "http://localhost:8000/collaborative-query" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "نصائح للصحة المالية",
-    "language": "ar",
-    "required_agents": ["medical", "finance"],
-    "strategy": "consensus"
-  }'
-```
+# اختبارات منطقية لا تحتاج مفتاح API ولا اتصال إنترنت
+pytest tests/ --ignore=tests/eval
 
-## إضافة المعرفة للوكلاء
+# تقييم الاسترجاع فقط (يحتاج تحميل نموذج التضمين، لا يحتاج مفتاح API)
+python tests/eval/run_eval.py --mode retrieval
 
-### إضافة معرفة يدوياً
-
-```python
-agent = MedicalAgent()
-
-# إضافة معلومات طبية
-agent.add_knowledge(
-    content="السكري من النوع الثاني يمكن إدارته من خلال النظام الغذائي والرياضة...",
-    metadata={
-        "topic": "diabetes",
-        "language": "ar",
-        "source": "medical_journal"
-    },
-    source="verified_source"
-)
-```
-
-### استيراد من ملف
-
-```python
-agent.rag_system.import_from_file(
-    file_path="knowledge/medical/diabetes.txt",
-    source="medical_knowledge",
-    metadata={"verified": True}
-)
-```
-
-## التعلم من التغذية الراجعة
-
-```python
-# بعد الحصول على إجابة
-agent.learn_from_feedback(
-    query="ما هي أعراض السكري؟",
-    response=response.content,
-    feedback={
-        "rating": 4.5,
-        "text": "معلومات مفيدة جداً!",
-        "corrections": None
-    }
-)
-
-# الحصول على رؤى التعلم
-insights = agent.learning_system.get_learning_insights()
-print(f"إجمالي التفاعلات: {insights['total_interactions']}")
-print(f"متوسط التقييم: {insights['feedback_stats']['average_rating']}")
+# تقييم كامل شامل RAGAS (يحتاج OPENAI_API_KEY)
+python tests/eval/run_eval.py --mode full
 ```
 
 ## الخطوات التالية
 
-1. **اقرأ الوثائق الكاملة**: راجع ملفات الوثائق لمزيد من التفاصيل
-2. **جرب الأمثلة**: نفذ الأمثلة في مجلد `examples/`
-3. **أنشئ وكيل مخصص**: اتبع دليل إنشاء الوكلاء
-4. **ساهم في المشروع**: راجع `CONTRIBUTING.md`
+1. اقرأ [PROJECT_OVERVIEW.md](../../PROJECT_OVERVIEW.md) لفهم السياق التنافسي والقرارات الاستراتيجية
+2. راجع [docs/eval/citation_audit.md](../eval/citation_audit.md) قبل أي استخدام حقيقي
+3. جرّب [examples/basic_usage.py](../../examples/basic_usage.py)
 
-## الدعم
-
-- **الوثائق**: [docs/](../README.md)
-- **المشاكل**: [GitHub Issues](https://github.com/emanalshazly/standalone-agents/issues)
-- **Discord**: [انضم لمجتمعنا](https://discord.gg/standalone-agents)
-
----
-
-**مبروك! 🎉 أنت الآن جاهز لاستخدام نظام الوكلاء المتخصصين**
+</div>
